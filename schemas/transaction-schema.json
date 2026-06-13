@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Transaction",
+  "type": "object",
+  "required": [
+    "transaction_id",
+    "produced_at",
+    "event_time",
+    "account_id",
+    "card_id",
+    "amount",
+    "channel",
+    "location_name",
+    "status",
+    "is_fraud",
+    "fraud_pattern"
+  ],
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Wall-clock time when the message was produced to Kafka (UTC ISO-8601)"
+    },
+    "event_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Actual time the transaction occurred — may differ from produced_at by ±2s"
+    },
+    "account_id": {
+      "type": "string",
+      "pattern": "^(ACC|FRD)_[0-9]{5}$"
+    },
+    "card_id": {
+      "type": "string",
+      "pattern": "^(CARD|FRD_CARD)_[0-9]{5}$"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Transaction amount in VND, serialized as integer string (no decimals)"
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["ATM", "POS", "ONLINE"]
+    },
+    "location_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Approved", "Declined"]
+    },
+    "is_fraud": {
+      "type": "string",
+      "enum": ["TRUE", "FALSE"],
+      "description": "Ground-truth fraud label — exists only in simulated data, not in production"
+    },
+    "fraud_pattern": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "HIGH_AMOUNT_BLOCK",
+        "HIGH_FREQUENCY",
+        "LOCATION_JUMP",
+        "DECLINED_BURST",
+        "RAPID_MICROPAYMENTS"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

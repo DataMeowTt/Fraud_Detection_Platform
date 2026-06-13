@@ -1,0 +1,11 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ML pipeline not implemented yet"
