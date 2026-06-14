@@ -1,4 +1,4 @@
-FROM flink:1.20
+FROM flink:1.20-java17
 
 RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop
 

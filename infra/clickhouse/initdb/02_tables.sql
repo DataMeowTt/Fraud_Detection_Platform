@@ -16,3 +16,30 @@ CREATE TABLE IF NOT EXISTS fraud_detection.transactions
 )
 ENGINE = MergeTree()
 ORDER BY produced_at;
+
+CREATE TABLE IF NOT EXISTS fraud_detection.accounts
+(
+    account_id     String,
+    card_id        String,
+    home_location  String,
+    avg_amount     UInt64
+)
+ENGINE = MergeTree()
+ORDER BY account_id;
+
+CREATE TABLE IF NOT EXISTS fraud_detection.ground_true_transactions
+(
+    transaction_id String,
+    produced_at    DateTime64(6, 'UTC'),
+    event_time     DateTime64(6, 'UTC'),
+    account_id     String,
+    card_id        String,
+    amount         UInt64,
+    channel        String,
+    location_name  String,
+    status         String,
+    is_fraud       Bool,
+    fraud_pattern  String
+)
+ENGINE = MergeTree()
+ORDER BY (event_time, transaction_id);

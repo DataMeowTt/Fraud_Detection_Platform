@@ -7,9 +7,10 @@ def create_producer(bootstrap_servers: str) -> Producer:
 
 def produce_batch(producer: Producer, rows: list[dict]) -> None:
     for row in rows:
+        payload = {k: v for k, v in row.items() if k not in ["is_fraud", "fraud_pattern"]}
         producer.produce(
             "transactions",
             key=row["account_id"].encode(),
-            value=json.dumps(row).encode(),
+            value=json.dumps(payload).encode(),
         )
     producer.poll(0)

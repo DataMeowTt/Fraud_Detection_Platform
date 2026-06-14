@@ -77,12 +77,9 @@ services:
       retries: 5
       start_period: 30s
 
-  transaction-generator:
-    build: ../services/transaction-generator
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
-    volumes:
-      - ../data:/app/data
+  kafka-init:
+    image: apache/kafka:latest
+    container_name: kafka-init
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -90,6 +87,26 @@ services:
         condition: service_healthy
       kafka-3:
         condition: service_healthy
+    volumes:
+      - ./kafka/scripts/create-topics.sh:/create-topics.sh
+    entrypoint: ["/bin/sh", "/create-topics.sh"]
+    restart: on-failure
+
+  transaction-generator:
+    build: ../services/transaction-generator
+    profiles: ["seed"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
+      CLICKHOUSE_HOST: clickhouse
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
 
   minio:
     image: minio/minio:latest
@@ -133,12 +150,13 @@ services:
     ports:
       - "8081:8081"
     environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         parallelism.default: 4
         state.backend.type: rocksdb
-        state.checkpoints.dir: s3://flink-checkpoints
-        state.savepoints.dir: s3://flink-savepoints
+        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+        state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 60s
         execution.checkpointing.mode: EXACTLY_ONCE
         s3.endpoint: http://minio:9000
@@ -157,13 +175,14 @@ services:
     hostname: taskmanager
     command: taskmanager
     environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         parallelism.default: 4
         taskmanager.numberOfTaskSlots: 4
         state.backend.type: rocksdb
-        state.checkpoints.dir: s3://flink-checkpoints
-        state.savepoints.dir: s3://flink-savepoints
+        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+        state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 60s
         execution.checkpointing.mode: EXACTLY_ONCE
         s3.endpoint: http://minio:9000
