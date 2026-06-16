@@ -5,7 +5,7 @@ from src.generator.models import AccountProfile, FraudPattern
 from src.generator.transaction_generator import make_transaction, make_transaction_amount_normal
 
 def make_high_amount_transaction(account: AccountProfile, base_times: list[float]) -> list:
-    amount = round(random.uniform(100, 200) * account.avg_amount, -3)
+    amount = round(random.uniform(1000, 2000) * account.avg_amount, -3)
     return [make_transaction(account, base_times[0], amount,
                              account.home_location, random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
                              True, FraudPattern.HIGH_AMOUNT_BLOCK)]

@@ -50,6 +50,9 @@ def insert_ground_truth_batch(client, batch) -> None:
 def truncate_ground_truth(client) -> None:
     client.command("TRUNCATE TABLE fraud_detection.ground_true_transactions")
 
+def truncate_transactions(client) -> None:
+    client.command("TRUNCATE TABLE fraud_detection.transactions")
+    
 def test_connection(client) -> bool:
     result = client.query("SELECT name FROM system.tables WHERE database = 'fraud_detection' ORDER BY name")
     tables = [row[0] for row in result.result_rows]
@@ -62,7 +65,7 @@ def test_connection(client) -> bool:
 def main():
     client = get_client()
     try:
-        test_connection(client)
+        truncate_transactions(client)
     finally:
         client.close()
 

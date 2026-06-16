@@ -4,7 +4,7 @@ from enum import Enum
 
 class FraudPattern(str, Enum):
     NONE                  = "NONE"
-    HIGH_AMOUNT_BLOCK     = "HIGH_AMOUNT_BLOCK"      # >100x avg/ Rules BLOCK
+    HIGH_AMOUNT_BLOCK     = "HIGH_AMOUNT_BLOCK"      # >1000x avg/ Rules BLOCK
     HIGH_FREQUENCY        = "HIGH_FREQUENCY"         # nhiều tx liên tiếp, 5x - 10x avg
     LOCATION_JUMP         = "LOCATION_JUMP"          # giao dịch từ 2 quốc gia 
     DECLINED_BURST        = "DECLINED_BURST"         # 3 status DECLINED liên tiếp cùng account

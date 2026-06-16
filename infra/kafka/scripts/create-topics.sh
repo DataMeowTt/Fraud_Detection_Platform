@@ -14,8 +14,4 @@ echo "[Kafka] Created: transactions (12 partitions)"
   --topic rules-updates --partitions 1 --replication-factor $REPLICATION
 echo "[Kafka] Created: rules-updates (1 partition)"
 
-/opt/kafka/bin/kafka-topics.sh --bootstrap-server $BROKER --create --if-not-exists \
-  --topic rule-decisions --partitions 12 --replication-factor $REPLICATION
-echo "[Kafka] Created: rule-decisions (12 partitions)"
-
 echo "[Kafka] Done. All topics created."

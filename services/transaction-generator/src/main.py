@@ -34,7 +34,7 @@ def main():
             account_id    = acc_id,
             card_id       = card_id,
             home_location = random.choice(DOMESTIC_LOCS),
-            avg_amount    = 20_000_000,
+            avg_amount    = 2_000_000,
         )
         fraud_scenarios.append((acc, INJECTOR_MAP[pattern_name], seconds))
 
