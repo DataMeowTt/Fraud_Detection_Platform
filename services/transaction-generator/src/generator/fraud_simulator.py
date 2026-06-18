@@ -15,7 +15,7 @@ def make_high_frequency(account: AccountProfile, base_times: list[float]) -> lis
     return [
         make_transaction(account, 
                          base_time,
-                         round(random.uniform(20, 100) * account.avg_amount, -3),
+                         random.uniform(50_000_000, 500_000_000),
                          account.home_location, 
                          random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
                          True, 
@@ -63,7 +63,7 @@ def make_rapid_micro_transaction(account: AccountProfile, base_times: list[float
     return [
         make_transaction(account, 
                          base_time,
-                         round(random.uniform(0.1, 0.5) * account.avg_amount, -3),
+                         random.uniform(2_000, 10_000),
                          account.home_location, 
                          random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
                          True, 

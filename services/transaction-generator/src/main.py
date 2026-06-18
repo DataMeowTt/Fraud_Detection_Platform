@@ -10,11 +10,11 @@ from src.producer import create_producer, produce_batch
 from src.utils.clickhouse_utils import get_client, read_accounts, insert_ground_truth_batch
 
 TPS      = 25
-DURATION = 5
+DURATION = 60
 
 SCENARIOS = [
     ["FRD_00001", "FRD_CARD_00001", "HIGH_AMOUNT_BLOCK",   [3]],
-    ["FRD_00002", "FRD_CARD_00002", "HIGH_FREQUENCY",      [2, 5, 8, 11]],
+    ["FRD_00002", "FRD_CARD_00002", "HIGH_FREQUENCY",      [2, 5, 8]],
     ["FRD_00003", "FRD_CARD_00003", "LOCATION_JUMP",       [6, 10]],
     ["FRD_00004", "FRD_CARD_00004", "DECLINED_BURST",      [4, 7, 12]],
     ["FRD_00005", "FRD_CARD_00005", "RAPID_MICROPAYMENTS", [9, 13, 17]],

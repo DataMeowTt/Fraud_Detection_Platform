@@ -66,6 +66,7 @@ def main():
     client = get_client()
     try:
         truncate_transactions(client)
+        truncate_ground_truth(client)
     finally:
         client.close()
 

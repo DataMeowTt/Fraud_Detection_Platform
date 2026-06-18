@@ -79,8 +79,12 @@ public class ClickHouseSink implements Sink<FraudDecision> {
 
         @Override
         public void close() throws Exception {
-            if (stmt != null) stmt.close();
-            if (conn != null) conn.close();
+            try {
+                flush(true);
+            } finally {
+                if (stmt != null) stmt.close();
+                if (conn != null) conn.close();
+            }
         }
     }
 }

@@ -35,12 +35,10 @@ def make_transaction(account: AccountProfile,
                      pattern: FraudPattern = FraudPattern.NONE,
                      status: str = "Approved") -> Transaction:
     
-    event_ts = ts + random.uniform(-2, 2)
-        
     return Transaction(
         transaction_id = str(uuid.uuid4()),
-        produced_at    = datetime.fromtimestamp(ts,       tz=timezone.utc).isoformat(),
-        event_time     = datetime.fromtimestamp(event_ts, tz=timezone.utc).isoformat(),
+        produced_at    = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(),
+        event_time     = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(),
         account_id     = account.account_id,
         card_id        = account.card_id,
         amount         = amount,
@@ -88,7 +86,7 @@ def generate(tps: int,
     fraud_by_sec: dict[int, list] = {}
     for acc, injector, seconds in fraud_scenarios:
 
-        timestamps = [start_epoch + sec + random.random() for sec in seconds]
+        timestamps = [start_epoch + sec for sec in seconds]
         fraud_txs  = injector(acc, timestamps)
         
         for sec, tx in zip(seconds, fraud_txs):
@@ -98,8 +96,8 @@ def generate(tps: int,
 
     for sec in range(duration_sec):
         batch = [
-            make_normal_transaction(random.choice(acc_list), start_epoch + sec + random.random())
-            for _ in range(tps)
+            make_normal_transaction(random.choice(acc_list), start_epoch + sec + i / tps)
+            for i in range(tps)
         ]
         if sec in fraud_by_sec:
             batch.extend(fraud_by_sec[sec])
