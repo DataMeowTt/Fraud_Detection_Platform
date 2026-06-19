@@ -9,6 +9,7 @@ class FraudPattern(str, Enum):
     LOCATION_JUMP         = "LOCATION_JUMP"          # giao dịch từ 2 quốc gia 
     DECLINED_BURST        = "DECLINED_BURST"         # 3 status DECLINED liên tiếp cùng account
     RAPID_MICROPAYMENTS   = "RAPID_MICROPAYMENTS"    # nhiều tx nhỏ liên tiếp
+    BLACKLISTED_ACCOUNT   = "BLACKLISTED_ACCOUNT"    # account bị blacklist bởi rule động
 
 
 @dataclass

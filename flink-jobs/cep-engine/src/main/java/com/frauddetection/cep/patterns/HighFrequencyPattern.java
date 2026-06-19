@@ -29,6 +29,6 @@ public class HighFrequencyPattern extends WindowedCountPattern {
 
     @Override
     protected boolean isQualifying(Transaction tx) {
-        return tx.amount > amountThreshold;
+        return tx.amount > amountThreshold && "Approved".equals(tx.status);
     }
 }

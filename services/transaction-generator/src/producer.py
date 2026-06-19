@@ -19,3 +19,11 @@ def produce_batch(producer: Producer, rows: list[dict]) -> None:
             value=json.dumps(payload).encode(),
         )
     producer.poll(0)
+
+def produce_rule_update(producer: Producer, rule: dict) -> None:
+    producer.produce(
+        "rules-updates",
+        key=rule["rule_id"].encode(),
+        value=json.dumps(rule).encode(),
+    )
+    producer.poll(0)

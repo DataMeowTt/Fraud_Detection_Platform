@@ -6,10 +6,10 @@ from src.config.settings import DOMESTIC_LOCS, KAFKA_BOOTSTRAP_SERVERS
 from src.generator.fraud_simulator import INJECTOR_MAP
 from src.generator.models import AccountProfile
 from src.generator.transaction_generator import generate
-from src.producer import create_producer, produce_batch
+from src.producer import create_producer, produce_batch, produce_rule_update
 from src.utils.clickhouse_utils import get_client, read_accounts, insert_ground_truth_batch
 
-TPS      = 25
+TPS      = 1000
 DURATION = 60
 
 SCENARIOS = [
@@ -18,6 +18,17 @@ SCENARIOS = [
     ["FRD_00003", "FRD_CARD_00003", "LOCATION_JUMP",       [6, 10]],
     ["FRD_00004", "FRD_CARD_00004", "DECLINED_BURST",      [4, 7, 12]],
     ["FRD_00005", "FRD_CARD_00005", "RAPID_MICROPAYMENTS", [9, 13, 17]],
+    ["FRD_00006", "FRD_CARD_00006", "BLACKLISTED_ACCOUNT",  [4, 15, 25]]
+]
+
+# Rule updates 
+RULE_UPDATES = {
+    10: {"rule_id": "BLACKLIST_FRD_00006", "field": "account_id", "operator": "EQ", "value": "FRD_00006", "threshold": 0, "action": "BLOCK", "enabled": True},
+    20: {"rule_id": "BLACKLIST_FRD_00006", "field": "account_id", "operator": "EQ", "value": "FRD_00006", "threshold": 0, "action": "BLOCK", "enabled": False},
+}
+
+DEFAULT_RULES = [
+    {"rule_id": "AMOUNT_THRESHOLD", "field": "amount", "operator": "GT", "threshold": 1_000_000_000, "action": "BLOCK", "enabled": True},
 ]
 
 
@@ -40,10 +51,18 @@ def main():
 
     producer = create_producer(KAFKA_BOOTSTRAP_SERVERS)
 
+    for rule in DEFAULT_RULES:
+        produce_rule_update(producer, rule)
+    print(f"[Rules] Seeded {len(DEFAULT_RULES)} default rule(s)")
+
     total = fraud_count = 0
 
-    for batch in generate(TPS, DURATION, time.time(), accounts, fraud_scenarios):
+    for sec, batch in enumerate(generate(TPS, DURATION, time.time(), accounts, fraud_scenarios)):
         deadline = time.monotonic() + 1.0
+
+        if sec in RULE_UPDATES:
+            produce_rule_update(producer, RULE_UPDATES[sec])
+            print(f"[Rules] sec={sec:>3} updated AMOUNT_THRESHOLD → {RULE_UPDATES[sec]['threshold']:,}")
 
         rows = [asdict(tx) for tx in batch]
         produce_batch(producer, rows)
@@ -54,7 +73,7 @@ def main():
 
         fraud_count += sum(1 for tx in batch if tx.is_fraud)
         total       += len(batch)
-        print(f"[sec {total // TPS:>4}] sent {len(batch):>4} txs  fraud={fraud_count}")
+        print(f"[sec {sec:>4}] sent {len(batch):>4} txs  fraud={fraud_count}")
 
         remaining = deadline - time.monotonic()
         if remaining > 0:

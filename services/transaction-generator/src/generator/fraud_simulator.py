@@ -72,6 +72,19 @@ def make_rapid_micro_transaction(account: AccountProfile, base_times: list[float
         for base_time in base_times
     ]
 
+def make_black_list_transaction(account: AccountProfile, base_times: list[float]) -> list:
+    
+    return [
+        make_transaction(account, 
+                         base_time,
+                         make_transaction_amount_normal(account),
+                         account.home_location, 
+                         random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
+                         True, 
+                         FraudPattern.BLACKLISTED_ACCOUNT)
+        
+        for base_time in base_times
+    ]
 
 INJECTOR_MAP = {
     "HIGH_AMOUNT_BLOCK":   make_high_amount_transaction,
@@ -79,4 +92,5 @@ INJECTOR_MAP = {
     "LOCATION_JUMP":       make_location_jump_transaction,
     "DECLINED_BURST":      make_declined_burst_transaction,
     "RAPID_MICROPAYMENTS": make_rapid_micro_transaction,
+    "BLACKLISTED_ACCOUNT": make_black_list_transaction,
 }

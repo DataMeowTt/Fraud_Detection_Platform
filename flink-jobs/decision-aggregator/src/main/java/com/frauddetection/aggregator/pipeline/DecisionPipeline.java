@@ -1,64 +1,65 @@
 package com.frauddetection.aggregator.pipeline;
 
 import com.frauddetection.cep.processor.CepEvaluator;
-import com.frauddetection.common.model.DecisionStatus;
 import com.frauddetection.common.model.FraudDecision;
+import com.frauddetection.common.model.FraudRule;
 import com.frauddetection.common.model.Transaction;
-// import com.frauddetection.ml.scorer.FraudScorer;
 import com.frauddetection.rules.processor.RuleEvaluator;
-import org.apache.flink.api.common.functions.RichMapFunction;
+import com.frauddetection.rules.state.RuleStateDescriptor;
+import org.apache.flink.api.common.state.BroadcastState;
+import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.util.Collector;
 
 import java.util.Optional;
 
 /**
- *   transaction -> Rules Engine -> BLOCK?        -> output
- *                  Rules PASS   -> CEP Engine    -> BLOCK/ALERT?        -> output   
- *                  CEP PASS     -> ML Engine     -> score >= threshold? -> output 
- *                  else                          -> APPROVED
+ *   transaction -> Rules Engine -> BLOCK/ALERT? -> output
+ *                  Rules PASS   -> CEP Engine   -> BLOCK/ALERT? -> output
+ *                  CEP PASS                     -> APPROVED
  */
-public class DecisionPipeline extends RichMapFunction<Transaction, FraudDecision> {
-
-    // private static final float ML_ALERT_THRESHOLD = 0.8f; // placeholder until ML stage is implemented
+public class DecisionPipeline
+        extends KeyedBroadcastProcessFunction<String, Transaction, FraudRule, FraudDecision> {
 
     private RuleEvaluator ruleEvaluator;
     private CepEvaluator  cepEvaluator;
-    // private FraudScorer   fraudScorer;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         ruleEvaluator = new RuleEvaluator();
-        ruleEvaluator.open(parameters);
-        cepEvaluator = new CepEvaluator(getRuntimeContext());
-        // fraudScorer  = new FraudScorer();
+        cepEvaluator  = new CepEvaluator(getRuntimeContext());
     }
 
     @Override
-    public FraudDecision map(Transaction tx) throws Exception {
+    public void processElement(Transaction tx, ReadOnlyContext ctx, Collector<FraudDecision> out) throws Exception {
 
-        FraudDecision ruleDecision = ruleEvaluator.map(tx);
-        if (ruleDecision.status == DecisionStatus.BLOCK) {
-            return ruleDecision;
+        ReadOnlyBroadcastState<String, FraudRule> rules = ctx.getBroadcastState(RuleStateDescriptor.DESCRIPTOR);
+
+        Optional<FraudDecision> ruleDecision = ruleEvaluator.evaluate(tx, rules.immutableEntries());
+        if (ruleDecision.isPresent()) {
+            out.collect(ruleDecision.get());
+            return;
         }
 
         Optional<CepEvaluator.CepResult> cepResult = cepEvaluator.evaluate(tx);
         if (cepResult.isPresent()) {
             FraudDecision decision = new FraudDecision(tx, cepResult.get().status(), null);
             decision.cepPattern = cepResult.get().patternName();
-            return decision;
+            out.collect(decision);
+            return;
         }
 
-        // Optional<Float> mlScore = fraudScorer.score(tx);
-        // if (mlScore.isPresent() && mlScore.get() >= ML_ALERT_THRESHOLD) {
-        //     FraudDecision decision = new FraudDecision(tx, DecisionStatus.ALERT, null);
-        //     decision.mlScore = mlScore.get();
-        //     return decision;
-        // }
+        out.collect(new FraudDecision(tx, com.frauddetection.common.model.DecisionStatus.APPROVED, null));
+    }
 
-        FraudDecision decision = new FraudDecision(tx, DecisionStatus.APPROVED, null);
-        // mlScore.ifPresent(score -> decision.mlScore = score);
-        return decision;
+    @Override
+    public void processBroadcastElement(FraudRule rule, Context ctx, Collector<FraudDecision> out) throws Exception {
+        BroadcastState<String, FraudRule> state = ctx.getBroadcastState(RuleStateDescriptor.DESCRIPTOR);
+        if (rule.enabled) {
+            state.put(rule.ruleId, rule);
+        } else {
+            state.remove(rule.ruleId);
+        }
     }
 }
-
-// ToDo: finish ML logic later

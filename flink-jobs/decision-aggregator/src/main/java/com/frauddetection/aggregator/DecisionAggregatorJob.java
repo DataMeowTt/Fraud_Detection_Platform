@@ -3,11 +3,15 @@ package com.frauddetection.aggregator;
 import com.frauddetection.aggregator.pipeline.DecisionPipeline;
 import com.frauddetection.aggregator.sink.ClickHouseSink;
 import com.frauddetection.common.model.FraudDecision;
+import com.frauddetection.common.model.FraudRule;
 import com.frauddetection.common.model.Transaction;
+import com.frauddetection.common.serialization.FraudRuleDeserializer;
 import com.frauddetection.common.serialization.TransactionDeserializer;
+import com.frauddetection.rules.state.RuleStateDescriptor;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -18,7 +22,6 @@ public class DecisionAggregatorJob {
     private static final String KAFKA_BROKERS  = System.getenv().getOrDefault(
             "KAFKA_BOOTSTRAP_SERVERS", "localhost:29092");
     private static final String CONSUMER_GROUP = "decision-aggregator";
-    private static final String INPUT_TOPIC    = "transactions";
 
     public static void main(String[] args) throws Exception {
 
@@ -26,24 +29,38 @@ public class DecisionAggregatorJob {
         env.setParallelism(4);
         env.enableCheckpointing(60_000);
 
-        KafkaSource<Transaction> kafkaSource = KafkaSource.<Transaction>builder()
+        KafkaSource<Transaction> txSource = KafkaSource.<Transaction>builder()
                 .setBootstrapServers(KAFKA_BROKERS)
-                .setTopics(INPUT_TOPIC)
+                .setTopics("transactions")
                 .setGroupId(CONSUMER_GROUP)
                 .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new TransactionDeserializer())
                 .build();
 
+        KafkaSource<FraudRule> rulesSource = KafkaSource.<FraudRule>builder()
+                .setBootstrapServers(KAFKA_BROKERS)
+                .setTopics("rules-updates")
+                .setGroupId(CONSUMER_GROUP + "-rules")
+                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setValueOnlyDeserializer(new FraudRuleDeserializer())
+                .build();
+
         DataStream<Transaction> transactions = env.fromSource(
-                kafkaSource,
+                txSource,
                 WatermarkStrategy.<Transaction>forBoundedOutOfOrderness(Duration.ofSeconds(5))
                         .withTimestampAssigner((tx, ts) -> parseEpochMs(tx.eventTime)),
                 "kafka-transactions"
         );
 
+        BroadcastStream<FraudRule> broadcastRules = env
+                .fromSource(rulesSource, WatermarkStrategy.noWatermarks(), "kafka-rules")
+                .setParallelism(1)
+                .broadcast(RuleStateDescriptor.DESCRIPTOR);
+
         DataStream<FraudDecision> decisions = transactions
                 .keyBy(tx -> tx.accountId)
-                .map(new DecisionPipeline());
+                .connect(broadcastRules)
+                .process(new DecisionPipeline());
 
         decisions.sinkTo(new ClickHouseSink()).name("clickhouse-sink");
 
