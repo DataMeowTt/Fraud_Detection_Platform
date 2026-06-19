@@ -35,10 +35,12 @@ def make_transaction(account: AccountProfile,
                      pattern: FraudPattern = FraudPattern.NONE,
                      status: str = "Approved") -> Transaction:
     
+    ts_iso = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
     return Transaction(
         transaction_id = str(uuid.uuid4()),
-        produced_at    = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(),
-        event_time     = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(),
+        produced_at    = ts_iso,
+        event_time     = ts_iso,
         account_id     = account.account_id,
         card_id        = account.card_id,
         amount         = amount,

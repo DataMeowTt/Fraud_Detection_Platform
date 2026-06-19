@@ -53,8 +53,8 @@ public class ClickHouseSink implements Sink<FraudDecision> {
                 stmt.setString(5, d.cepPattern);
                 if (d.mlScore != null) stmt.setFloat(6, d.mlScore);
                 else                   stmt.setNull(6, java.sql.Types.FLOAT);
-                stmt.setTimestamp(7, java.sql.Timestamp.from(java.time.OffsetDateTime.parse(d.producedAt).toInstant()));
-                stmt.setTimestamp(8, java.sql.Timestamp.from(java.time.OffsetDateTime.parse(d.decidedAt).toInstant()));
+                stmt.setObject(7, java.time.OffsetDateTime.parse(d.producedAt).toLocalDateTime());
+                stmt.setObject(8, java.time.OffsetDateTime.parse(d.decidedAt).toLocalDateTime());
                 stmt.setString(9, d.status.name());
                 stmt.addBatch();
                 pendingCount++;

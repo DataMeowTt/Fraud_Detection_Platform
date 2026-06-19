@@ -45,7 +45,11 @@ def main():
     for batch in generate(TPS, DURATION, time.time(), accounts, fraud_scenarios):
         deadline = time.monotonic() + 1.0
 
-        produce_batch(producer, [asdict(tx) for tx in batch])
+        rows = [asdict(tx) for tx in batch]
+        produce_batch(producer, rows)
+        for tx, row in zip(batch, rows):
+            tx.produced_at = row["produced_at"]
+            tx.event_time  = row["event_time"]
         insert_ground_truth_batch(ch_client, batch)
 
         fraud_count += sum(1 for tx in batch if tx.is_fraud)

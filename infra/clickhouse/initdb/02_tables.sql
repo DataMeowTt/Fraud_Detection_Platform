@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS fraud_detection.transactions
     cep_pattern    Nullable(String),
     ml_score       Nullable(Float32),
 
-    produced_at    DateTime64(3),
-    decided_at     DateTime64(3),
+    produced_at    DateTime64(6, 'UTC'),
+    decided_at     DateTime64(6, 'UTC'),
 
     decision       Enum8('APPROVED' = 1, 'ALERT' = 2, 'BLOCK' = 3)
 )
