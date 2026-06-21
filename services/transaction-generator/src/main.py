@@ -9,7 +9,7 @@ from src.generator.transaction_generator import generate
 from src.producer import create_producer, produce_batch, produce_rule_update
 from src.utils.clickhouse_utils import get_client, read_accounts, insert_ground_truth_batch
 
-TPS      = 1000
+TPS      = 5000
 DURATION = 60
 
 SCENARIOS = [
