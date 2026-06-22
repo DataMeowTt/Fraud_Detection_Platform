@@ -20,5 +20,40 @@ def print_avg_latency():
         client.close()
 
 
+def print_top_slowest():
+    client = get_client()
+    try:
+        result = client.query("""
+            SELECT
+                transaction_id,
+                account_id,
+                amount,
+                rule_hit,
+                cep_pattern,
+                ml_score,
+                decision,
+                produced_at,
+                decided_at,
+                dateDiff('millisecond', produced_at, decided_at) AS latency_ms
+            FROM fraud_detection.transactions
+            ORDER BY latency_ms DESC
+            LIMIT 10
+        """)
+        cols = [
+            "transaction_id", "account_id", "amount",
+            "rule_hit", "cep_pattern", "ml_score",
+            "decision", "produced_at", "decided_at", "latency_ms",
+        ]
+        header = " | ".join(f"{c:>20}" for c in cols)
+        print("\n[Top slowest decisions]")
+        print(header)
+        print("-" * len(header))
+        for row in result.result_rows:
+            print(" | ".join(f"{str(v):>20}" for v in row))
+    finally:
+        client.close()
+
+
 if __name__ == "__main__":
     print_avg_latency()
+    print_top_slowest()

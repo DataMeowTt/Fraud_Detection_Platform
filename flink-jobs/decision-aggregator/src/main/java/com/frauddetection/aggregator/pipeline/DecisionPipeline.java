@@ -1,9 +1,12 @@
 package com.frauddetection.aggregator.pipeline;
 
 import com.frauddetection.cep.processor.CepEvaluator;
+import com.frauddetection.common.model.DecisionStatus;
 import com.frauddetection.common.model.FraudDecision;
 import com.frauddetection.common.model.FraudRule;
 import com.frauddetection.common.model.Transaction;
+import com.frauddetection.ml.features.FeatureExtractor;
+import com.frauddetection.ml.scorer.FraudScorer;
 import com.frauddetection.rules.processor.RuleEvaluator;
 import com.frauddetection.rules.state.RuleStateDescriptor;
 import org.apache.flink.api.common.state.BroadcastState;
@@ -15,20 +18,26 @@ import org.apache.flink.util.Collector;
 import java.util.Optional;
 
 /**
- *   transaction -> Rules Engine -> BLOCK/ALERT? -> output
- *                  Rules PASS   -> CEP Engine   -> BLOCK/ALERT? -> output
- *                  CEP PASS                     -> APPROVED
+ * transaction -> Rules Engine -> BLOCK/ALERT? -> output
+ *               Rules PASS   -> CEP Engine   -> BLOCK/ALERT? -> output
+ *               CEP PASS                     -> ML Engine    -> ALERT/APPROVED -> output
  */
 public class DecisionPipeline
         extends KeyedBroadcastProcessFunction<String, Transaction, FraudRule, FraudDecision> {
 
-    private RuleEvaluator ruleEvaluator;
-    private CepEvaluator  cepEvaluator;
+    private RuleEvaluator    ruleEvaluator;
+    private CepEvaluator     cepEvaluator;
+    private FeatureExtractor featureExtractor;
+    private FraudScorer      fraudScorer;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        ruleEvaluator = new RuleEvaluator();
-        cepEvaluator  = new CepEvaluator(getRuntimeContext());
+        ruleEvaluator    = new RuleEvaluator();
+        cepEvaluator     = new CepEvaluator(getRuntimeContext());
+        featureExtractor = new FeatureExtractor();
+        featureExtractor.open(getRuntimeContext());
+        fraudScorer = new FraudScorer();
+        fraudScorer.open();
     }
 
     @Override
@@ -38,19 +47,27 @@ public class DecisionPipeline
 
         Optional<FraudDecision> ruleDecision = ruleEvaluator.evaluate(tx, rules.immutableEntries());
         if (ruleDecision.isPresent()) {
+            featureExtractor.update(tx);
             out.collect(ruleDecision.get());
             return;
         }
 
         Optional<CepEvaluator.CepResult> cepResult = cepEvaluator.evaluate(tx);
         if (cepResult.isPresent()) {
+            featureExtractor.update(tx);
             FraudDecision decision = new FraudDecision(tx, cepResult.get().status(), null);
             decision.cepPattern = cepResult.get().patternName();
             out.collect(decision);
             return;
         }
 
-        out.collect(new FraudDecision(tx, com.frauddetection.common.model.DecisionStatus.APPROVED, null));
+        float[] features = featureExtractor.extract(tx);
+        featureExtractor.update(tx);
+        float mlScore = fraudScorer.score(features);
+        DecisionStatus status = fraudScorer.isFraud(mlScore) ? DecisionStatus.ALERT : DecisionStatus.APPROVED;
+        FraudDecision mlDecision = new FraudDecision(tx, status, null);
+        mlDecision.mlScore = mlScore;
+        out.collect(mlDecision);
     }
 
     @Override
