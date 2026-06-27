@@ -44,9 +44,8 @@ def print_top_slowest():
             LIMIT 10
         """)
         cols = [
-            "transaction_id", "account_id", "amount",
-            "rule_hit", "cep_pattern", "ml_score",
-            "decision", "produced_at", "decided_at", "latency_ms",
+            "account_id",
+            "decision", "latency_ms",
         ]
         header = " | ".join(f"{c:>20}" for c in cols)
         print("\n[Top slowest decisions]")
@@ -90,4 +89,12 @@ def print_rule_update_latency(client) -> None:
 
 
 if __name__ == "__main__":
+    print_avg_latency()
+    
+    print("\n")
+    
+    print_top_slowest()
+    
+    print("\n")
+    
     print_rule_update_latency(get_client())

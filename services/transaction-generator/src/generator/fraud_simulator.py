@@ -197,7 +197,7 @@ def make_advanced_location_jump(account: AccountProfile, ws: datetime, we: datet
     # 2 tx đầu: 100-300M; từ tx thứ 3: 70-99M (né CEP HighFrequency 1h window)
     fraud_txs = [
         make_transaction(account, t,
-                         random.randint(100_000_000, 300_000_000) if i < 2
+                         random.randint(250_000_000, 500_000_000) if i < 2
                          else random.randint(70_000_000, 99_999_999),
                          fraud_loc,
                          random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
@@ -208,20 +208,89 @@ def make_advanced_location_jump(account: AccountProfile, ws: datetime, we: datet
     return normal_txs + fraud_txs
 
 
+def make_advanced_high_frequency_v1(account: AccountProfile, ws: datetime, we: datetime, *, ctx=None) -> list:
+    n_tx    = random.randint(3, 6)
+    channel = random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0]
+    span    = (we - ws).total_seconds()
+    times   = sorted(ws + timedelta(seconds=random.uniform(0, span)) for _ in range(n_tx))
+    return [
+        make_transaction(account, t,
+                         random.randint(70_000_000, 99_000_000),
+                         account.home_location, channel,
+                         True, FraudPattern.ADVANCED_HIGH_FREQUENCY_V1)
+        for t in times
+    ]
+
+
+def make_advanced_high_frequency_v2(account: AccountProfile, ws: datetime, we: datetime, *, ctx: WindowContext = None) -> list:
+    if ctx is None:
+        raise ValueError("make_advanced_high_frequency_v2 requires ctx")
+
+    n_tx = random.randint(3, 6)
+
+    night_ws, night_we = ctx.night_window()
+
+    w1 = (ws, we)
+    w2 = ctx.next_window()
+    idx3 = (ctx.idx + 2) % len(ctx.windows)
+    cyc3 = ctx.cycle + ((ctx.idx + 2) // len(ctx.windows))
+    w3   = ctx.compute(idx3, cyc3)
+
+    uses_night = any(w_s == night_ws for w_s, _ in [w1, w2, w3])
+
+    if uses_night:
+        times = sorted(rand_date(night_ws, night_we) for _ in range(n_tx))
+    else:
+        span  = (w3[1] - w1[0]).total_seconds()
+        times = sorted(
+            min(w1[0] + timedelta(seconds=random.uniform(0, span)),
+                w3[1] - timedelta(seconds=1))
+            for _ in range(n_tx)
+        )
+        
+    high_times: list[datetime] = []
+    txs = []
+
+    for i, t in enumerate(times):
+        if i < 2:
+            amount = random.randint(150_000_000, 300_000_000)
+            high_times.append(t)
+        else:
+            if (t - high_times[0]).total_seconds() > 3600:
+                amount = random.randint(150_000_000, 300_000_000)
+                high_times.append(t)
+            else:
+                amount = random.randint(70_000_000, 99_000_000)
+
+        if len(high_times) >= 3:
+            high_times.pop(0)
+
+        txs.append(make_transaction(
+            account, t, amount,
+            account.home_location,
+            random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
+            True, FraudPattern.ADVANCED_HIGH_FREQUENCY_V2,
+        ))
+
+    return txs
+
+
 INJECTOR_MAP = {
     # RULE PATTERNS
-    "HIGH_AMOUNT_BLOCK":      make_high_amount_transaction,
-    "BLACKLISTED_ACCOUNT":    make_black_list_transaction,
+    "HIGH_AMOUNT_BLOCK":          make_high_amount_transaction,
+    "BLACKLISTED_ACCOUNT":        make_black_list_transaction,
 
     # CEP PATTERNS
-    "HIGH_FREQUENCY":         make_high_frequency,
-    "LOCATION_JUMP":          make_location_jump_transaction,
-    "DECLINED_BURST":         make_declined_burst_transaction,
-    "RAPID_MICROPAYMENTS":    make_rapid_micro_transaction,
+    "HIGH_FREQUENCY":             make_high_frequency,
+    "LOCATION_JUMP":              make_location_jump_transaction,
+    "DECLINED_BURST":             make_declined_burst_transaction,
+    "RAPID_MICROPAYMENTS":        make_rapid_micro_transaction,
 
     # ML PATTERNS
-    "WARM_UP_ACTIVITY":       make_warm_up_activity,
-    "MIDNIGHT_ACTIVITY":      make_midnight_activity,
-    "UNDER_THREAD_ACTIVITY":  make_under_thread_activity,
-    "ADVANCED_LOCATION_JUMP": make_advanced_location_jump,
+    "WARM_UP_ACTIVITY":           make_warm_up_activity,
+    "MIDNIGHT_ACTIVITY":          make_midnight_activity,
+    "UNDER_THREAD_ACTIVITY":      make_under_thread_activity,
+    "ADVANCED_LOCATION_JUMP":     make_advanced_location_jump,
+    "ADVANCED_HIGH_FREQUENCY_V1": make_advanced_high_frequency_v1,
+    "ADVANCED_HIGH_FREQUENCY_V2": make_advanced_high_frequency_v2,
 }
