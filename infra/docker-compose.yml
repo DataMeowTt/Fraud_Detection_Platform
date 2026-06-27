@@ -98,6 +98,8 @@ services:
   transaction-generator:
     build: ../services/transaction-generator
     profiles: ["seed"]
+    volumes:
+      - ../services/transaction-generator/src/rule_update_time.txt:/app/rule_update_time.txt
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       CLICKHOUSE_HOST: clickhouse
@@ -156,7 +158,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 4
+        parallelism.default: 8
         state.backend.type: rocksdb
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints
@@ -181,8 +183,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 4
-        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 8
+        taskmanager.numberOfTaskSlots: 8
         state.backend.type: rocksdb
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints

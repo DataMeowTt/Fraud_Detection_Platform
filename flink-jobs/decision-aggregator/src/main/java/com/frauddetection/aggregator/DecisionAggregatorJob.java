@@ -26,7 +26,7 @@ public class DecisionAggregatorJob {
     public static void main(String[] args) throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4);
+        env.setParallelism(8);
         env.enableCheckpointing(60_000);
 
         KafkaSource<Transaction> txSource = KafkaSource.<Transaction>builder()

@@ -7,8 +7,8 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import java.time.Duration;
 
 /**
- * BLOCK: 3+ transactions with amount above 50,000,000 for the same account
- * within a 120s window.
+ * BLOCK: 3+ transactions with amount above 100,000,000 for the same account
+ * within a 1-hour window.
  */
 public class HighFrequencyPattern extends WindowedCountPattern {
 
@@ -17,9 +17,9 @@ public class HighFrequencyPattern extends WindowedCountPattern {
     public HighFrequencyPattern(RuntimeContext ctx, ParameterTool params) {
         super(ctx, "high-frequency-timestamps",
                 params.getInt("cep.high-frequency.threshold", 3),
-                Duration.ofSeconds(params.getLong("cep.window.seconds", 120)),
-                Duration.ofMinutes(params.getLong("cep.state.ttl.minutes", 30)));
-        this.amountThreshold = params.getLong("cep.high-frequency.amount-min", 50_000_000L);
+                Duration.ofSeconds(params.getLong("cep.high-frequency.window.seconds", 3600)),
+                Duration.ofMinutes(params.getLong("cep.high-frequency.state.ttl.minutes", 5)));
+        this.amountThreshold = params.getLong("cep.high-frequency.amount-min", 100_000_000L);
     }
 
     @Override

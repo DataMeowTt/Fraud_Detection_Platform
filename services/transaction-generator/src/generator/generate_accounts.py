@@ -2,6 +2,7 @@ import random
 
 from src.config.settings import DOMESTIC_LOCS, NUM_ACCOUNTS
 from src.generator.models import AccountProfile
+from src.utils.csv_utils import write_csv
 
 OUTPUT = "/Users/trananhtuan/Documents/Fraud_Detection_Platform/data/accounts.csv"
 
@@ -39,8 +40,6 @@ def build_account_pool() -> dict:
 
 
 if __name__ == "__main__":
-    from src.utils.csv_utils import write_csv
-
     random.seed(42)
     accounts = build_account_pool()
 

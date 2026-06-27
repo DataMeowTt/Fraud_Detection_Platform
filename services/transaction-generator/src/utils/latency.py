@@ -1,5 +1,7 @@
-import clickhouse_connect
 import os
+from datetime import datetime
+
+import clickhouse_connect
 
 CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "localhost")
 
@@ -13,6 +15,7 @@ def print_avg_latency():
         result = client.query("""
             SELECT avg(dateDiff('millisecond', produced_at, decided_at)) AS avg_latency_ms
             FROM fraud_detection.transactions
+            WHERE account_id != 'FRD_RULE_UPDATE_SC6'
         """)
         avg_ms = result.result_rows[0][0]
         print(f"[Latency] avg(decided_at - produced_at) = {avg_ms:.2f} ms")
@@ -36,6 +39,7 @@ def print_top_slowest():
                 decided_at,
                 dateDiff('millisecond', produced_at, decided_at) AS latency_ms
             FROM fraud_detection.transactions
+            WHERE account_id != 'FRD_RULE_UPDATE_SC6'
             ORDER BY latency_ms DESC
             LIMIT 10
         """)
@@ -54,6 +58,36 @@ def print_top_slowest():
         client.close()
 
 
+def print_rule_update_latency(client) -> None:
+    result = client.query(
+        """
+        SELECT decided_at
+        FROM fraud_detection.transactions
+        WHERE account_id = 'FRD_RULE_UPDATE_SC6'
+          AND decision = 'BLOCK'
+        ORDER BY decided_at ASC
+        LIMIT 1
+        """
+    )
+    if not result.result_rows:
+        print("[Latency] No BLOCK decision found for FRD_RULE_UPDATE_SC6")
+        return
+
+    decided_at = result.result_rows[0][0]
+
+    txt_path = os.path.join(os.path.dirname(__file__), "..", "rule_update_time.txt")
+    with open(txt_path) as f:
+        rule_time_str = f.read().strip()
+    rule_time = datetime.strptime(rule_time_str, "%Y-%m-%d %H:%M:%S.%f")
+
+    if isinstance(decided_at, str):
+        decided_at = datetime.strptime(decided_at[:26], "%Y-%m-%d %H:%M:%S.%f")
+
+    latency_s = (decided_at - rule_time).total_seconds()
+    print(f"[Latency] Rule produced_at : {rule_time_str}")
+    print(f"[Latency] First BLOCK at   : {decided_at}")
+    print(f"[Latency] Rule → BLOCK     : {latency_s:.3f} s")
+
+
 if __name__ == "__main__":
-    print_avg_latency()
-    print_top_slowest()
+    print_rule_update_latency(get_client())

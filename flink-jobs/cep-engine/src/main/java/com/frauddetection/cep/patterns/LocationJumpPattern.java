@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * BLOCK: transactions from 2+ distinct locations for the same account within a
- * 120s window.
+ * BLOCK: transactions from 2+ distinct countries for the same account within a
+ * 1-hour window.
  */
 public class LocationJumpPattern implements CepPattern {
 
@@ -27,8 +27,8 @@ public class LocationJumpPattern implements CepPattern {
     private final ListState<Tuple2<Long, String>> recentLocations;
 
     public LocationJumpPattern(RuntimeContext ctx, ParameterTool params) {
-        this.window = Duration.ofSeconds(params.getLong("cep.window.seconds", 120));
-        Duration stateTtl = Duration.ofMinutes(params.getLong("cep.state.ttl.minutes", 30));
+        this.window = Duration.ofSeconds(params.getLong("cep.location-jump.window.seconds", 3600));
+        Duration stateTtl = Duration.ofMinutes(params.getLong("cep.location-jump.state.ttl.minutes", 5));
 
         ListStateDescriptor<Tuple2<Long, String>> descriptor = new ListStateDescriptor<>(
                 "location-jump-recent",

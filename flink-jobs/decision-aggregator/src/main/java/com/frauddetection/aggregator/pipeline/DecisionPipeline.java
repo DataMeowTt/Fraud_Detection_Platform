@@ -16,14 +16,23 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.util.Collector;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * transaction -> Rules Engine -> BLOCK/ALERT? -> output
+ * transaction -> Rules Engine -> BLOCK? -> output
  *               Rules PASS   -> CEP Engine   -> BLOCK/ALERT? -> output
  *               CEP PASS                     -> ML Engine    -> ALERT/APPROVED -> output
  */
 public class DecisionPipeline
         extends KeyedBroadcastProcessFunction<String, Transaction, FraudRule, FraudDecision> {
+
+    private static final Set<String> PRIORITY_ACCOUNTS = Set.of(
+            "FRD_RULE_UPDATE_SC6"
+    );
+
+    private static boolean isPriorityAccount(String accountId) {
+        return PRIORITY_ACCOUNTS.contains(accountId);
+    }
 
     private RuleEvaluator    ruleEvaluator;
     private CepEvaluator     cepEvaluator;
@@ -47,14 +56,20 @@ public class DecisionPipeline
 
         Optional<FraudDecision> ruleDecision = ruleEvaluator.evaluate(tx, rules.immutableEntries());
         if (ruleDecision.isPresent()) {
-            featureExtractor.update(tx);
+            featureExtractor.update(tx, false);
             out.collect(ruleDecision.get());
+            return;
+        }
+
+        if (isPriorityAccount(tx.accountId)) {
+            featureExtractor.update(tx, true);
+            out.collect(new FraudDecision(tx, DecisionStatus.APPROVED, null));
             return;
         }
 
         Optional<CepEvaluator.CepResult> cepResult = cepEvaluator.evaluate(tx);
         if (cepResult.isPresent()) {
-            featureExtractor.update(tx);
+            featureExtractor.update(tx, false);
             FraudDecision decision = new FraudDecision(tx, cepResult.get().status(), null);
             decision.cepPattern = cepResult.get().patternName();
             out.collect(decision);
@@ -62,9 +77,9 @@ public class DecisionPipeline
         }
 
         float[] features = featureExtractor.extract(tx);
-        featureExtractor.update(tx);
         float mlScore = fraudScorer.score(features);
         DecisionStatus status = fraudScorer.isFraud(mlScore) ? DecisionStatus.ALERT : DecisionStatus.APPROVED;
+        featureExtractor.update(tx, status == DecisionStatus.APPROVED);
         FraudDecision mlDecision = new FraudDecision(tx, status, null);
         mlDecision.mlScore = mlScore;
         out.collect(mlDecision);

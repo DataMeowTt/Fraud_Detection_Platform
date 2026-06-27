@@ -18,8 +18,8 @@ public class RapidMicropaymentsPattern extends WindowedCountPattern {
     public RapidMicropaymentsPattern(RuntimeContext ctx, ParameterTool params) {
         super(ctx, "rapid-micropayments-timestamps",
                 params.getInt("cep.rapid-micropayments.threshold", 3),
-                Duration.ofSeconds(params.getLong("cep.window.seconds", 120)),
-                Duration.ofMinutes(params.getLong("cep.state.ttl.minutes", 30)));
+                Duration.ofSeconds(params.getLong("cep.rapid-micropayments.window.seconds", 120)),
+                Duration.ofMinutes(params.getLong("cep.rapid-micropayments.state.ttl.minutes", 5)));
         this.minAmount = params.getLong("cep.rapid-micropayments.amount-min", 2_000L);
         this.maxAmount = params.getLong("cep.rapid-micropayments.amount-max", 10_000L);
     }

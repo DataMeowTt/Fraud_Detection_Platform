@@ -14,8 +14,8 @@ public class DeclinedBurstPattern extends WindowedCountPattern {
     public DeclinedBurstPattern(RuntimeContext ctx, ParameterTool params) {
         super(ctx, "declined-burst-timestamps",
                 params.getInt("cep.declined-burst.threshold", 3),
-                Duration.ofSeconds(params.getLong("cep.window.seconds", 120)),
-                Duration.ofMinutes(params.getLong("cep.state.ttl.minutes", 30)));
+                Duration.ofSeconds(params.getLong("cep.declined-burst.window.seconds", 120)),
+                Duration.ofMinutes(params.getLong("cep.declined-burst.state.ttl.minutes", 5)));
     }
 
     @Override

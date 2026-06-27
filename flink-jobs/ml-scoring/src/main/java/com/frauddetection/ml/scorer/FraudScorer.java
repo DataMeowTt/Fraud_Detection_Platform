@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 public class FraudScorer implements Serializable {
 
-    private static final int NUM_FEATURES = 8;
+    private static final int NUM_FEATURES = 9;
 
     private float threshold;
     private transient Booster booster;
@@ -19,9 +19,9 @@ public class FraudScorer implements Serializable {
         String accessKey = System.getenv().getOrDefault("MINIO_ACCESS_KEY",     "minioadmin");
         String secretKey = System.getenv().getOrDefault("MINIO_SECRET_KEY",     "minioadmin123");
         String bucket    = System.getenv().getOrDefault("MINIO_BUCKET",         "ml-models");
-        String modelKey  = System.getenv().getOrDefault("MINIO_MODEL_KEY",      "fraud_model.json");
+        String modelKey  = System.getenv().getOrDefault("MINIO_MODEL_KEY",      "fraud_detection_model.json");
         threshold        = Float.parseFloat(
-                           System.getenv().getOrDefault("ML_FRAUD_THRESHOLD",   "0.0091"));
+                           System.getenv().getOrDefault("ML_FRAUD_THRESHOLD",   "0.9688"));
 
         byte[] modelBytes = ModelLoader.load(endpoint, accessKey, secretKey, bucket, modelKey);
         booster = XGBoost.loadModel(modelBytes);
