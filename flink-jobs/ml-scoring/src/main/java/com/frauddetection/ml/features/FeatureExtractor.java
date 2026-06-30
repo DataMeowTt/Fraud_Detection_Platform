@@ -85,7 +85,18 @@ public class FeatureExtractor implements Serializable {
 
     public void update(Transaction tx, boolean includeInAvg) throws Exception {
         long currentTs = Instant.parse(tx.eventTime).toEpochMilli();
-        txHistory.add(Tuple3.of(currentTs, tx.amount, includeInAvg));
+        long cutoff24h = currentTs - 24L * 3_600_000;
+
+        List<Tuple3<Long, Long, Boolean>> kept = new ArrayList<>();
+        Iterable<Tuple3<Long, Long, Boolean>> stored = txHistory.get();
+        if (stored != null) {
+            for (Tuple3<Long, Long, Boolean> e : stored) {
+                if (e.f0 >= cutoff24h) kept.add(e);
+            }
+        }
+        kept.add(Tuple3.of(currentTs, tx.amount, includeInAvg));
+        txHistory.update(kept);
+
         if (homeLocation.value() == null) {
             homeLocation.update(tx.locationName);
         }

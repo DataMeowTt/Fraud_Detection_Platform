@@ -1,0 +1,236 @@
+{
+  "title": "Flink Job Metrics",
+  "uid": "flink-metrics",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "tags": ["flink", "prometheus"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Records In/s per Subtask (Data Skew)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_job_task_numRecordsInPerSecond",
+          "legendFormat": "subtask {{subtask_index}} — {{task_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "color": { "mode": "palette-classic" } }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Backpressure Time (ms/s) per Task",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_job_task_backPressuredTimeMsPerSecond",
+          "legendFormat": "subtask {{subtask_index}} — {{task_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 3,
+      "title": "Records Out/s per Subtask",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_job_task_numRecordsOutPerSecond",
+          "legendFormat": "subtask {{subtask_index}} — {{task_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "color": { "mode": "palette-classic" } }
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 4,
+      "title": "Last Checkpoint Duration (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_jobmanager_job_lastCheckpointDuration",
+          "legendFormat": "checkpoint duration"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "fixed", "fixedColor": "purple" } }
+      },
+      "options": { "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 5,
+      "title": "JVM Heap Used (bytes)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_Status_JVM_Memory_Heap_Used",
+          "legendFormat": "{{host}} heap used"
+        },
+        {
+          "refId": "B",
+          "expr": "flink_taskmanager_Status_JVM_Memory_Heap_Max",
+          "legendFormat": "{{host}} heap max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } }
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 6,
+      "title": "Busy Time (ms/s) per Task",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_job_task_busyTimeMsPerSecond",
+          "legendFormat": "subtask {{subtask_index}} — {{task_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 1000,
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 700 },
+              { "color": "red", "value": 900 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "id": 9,
+      "title": "GC Pause Time (ms/s) — Young vs Full",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_Status_JVM_GarbageCollector_G1_Young_Generation_TimeMsPerSecond",
+          "legendFormat": "Young GC ({{host}})"
+        },
+        {
+          "refId": "B",
+          "expr": "flink_taskmanager_Status_JVM_GarbageCollector_G1_Old_Generation_TimeMsPerSecond",
+          "legendFormat": "Full GC ({{host}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "Full GC.*" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Kafka Consumer Lag (records)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_job_task_operator_KafkaSourceReader_KafkaConsumer_records_lag_max",
+          "legendFormat": "lag — subtask {{subtask_index}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 5000 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      }
+    },
+    {
+      "id": 8,
+      "title": "CPU Load per TaskManager",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "DS_PROMETHEUS" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "flink_taskmanager_Status_JVM_CPU_Load",
+          "legendFormat": "{{host}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "color": { "mode": "palette-classic" } }
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    }
+  ]
+}

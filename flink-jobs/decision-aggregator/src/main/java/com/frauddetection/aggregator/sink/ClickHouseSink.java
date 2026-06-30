@@ -8,6 +8,11 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ClickHouseSink implements Sink<FraudDecision> {
 
@@ -32,7 +37,13 @@ public class ClickHouseSink implements Sink<FraudDecision> {
 
         private final Connection        conn;
         private final PreparedStatement stmt;
-        private int pendingCount = 0;
+        private final LinkedBlockingQueue<FraudDecision> queue = new LinkedBlockingQueue<>();
+        private final AtomicLong enqueued  = new AtomicLong(0);
+        private final AtomicLong committed = new AtomicLong(0);
+        private volatile boolean   running    = true;
+        private volatile boolean   forceFlush = false;
+        private volatile IOException flushError = null;
+        private final Thread flusher;
 
         ClickHouseWriter(String url) throws IOException {
             try {
@@ -41,11 +52,46 @@ public class ClickHouseSink implements Sink<FraudDecision> {
             } catch (Exception e) {
                 throw new IOException("Failed to connect to ClickHouse", e);
             }
+            flusher = new Thread(this::flushLoop, "clickhouse-flusher");
+            flusher.setDaemon(true);
+            flusher.start();
         }
 
-        @Override
-        public void write(FraudDecision d, Context context) throws IOException {
-            try {
+        private void flushLoop() {
+            List<FraudDecision> batch = new ArrayList<>(BATCH_SIZE);
+            while (running || !queue.isEmpty()) {
+                try {
+                    FraudDecision d = queue.poll(50, TimeUnit.MILLISECONDS);
+                    if (d != null) {
+                        batch.add(d);
+                        queue.drainTo(batch, BATCH_SIZE - batch.size());
+                    }
+                    if (!batch.isEmpty() && (batch.size() >= BATCH_SIZE || forceFlush || !running)) {
+                        executeBatch(batch);
+                        committed.addAndGet(batch.size());
+                        batch.clear();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    flushError = new IOException("ClickHouse batch flush failed", e);
+                    break;
+                }
+            }
+            if (!batch.isEmpty()) {
+                try {
+                    executeBatch(batch);
+                    committed.addAndGet(batch.size());
+                } catch (Exception e) {
+                    if (flushError == null)
+                        flushError = new IOException("ClickHouse final flush failed", e);
+                }
+            }
+        }
+
+        private void executeBatch(List<FraudDecision> batch) throws Exception {
+            for (FraudDecision d : batch) {
                 stmt.setString(1, d.transactionId);
                 stmt.setString(2, d.accountId);
                 stmt.setBigDecimal(3, java.math.BigDecimal.valueOf(d.amount));
@@ -57,34 +103,39 @@ public class ClickHouseSink implements Sink<FraudDecision> {
                 stmt.setObject(8, java.time.OffsetDateTime.parse(d.decidedAt).toLocalDateTime());
                 stmt.setString(9, d.status.name());
                 stmt.addBatch();
-                pendingCount++;
-                if (pendingCount >= BATCH_SIZE) {
-                    flush(false);
-                }
-            } catch (Exception e) {
-                throw new IOException("ClickHouse insert failed", e);
             }
+            stmt.executeBatch();
+        }
+
+        @Override
+        public void write(FraudDecision d, Context context) throws IOException {
+            if (flushError != null) throw flushError;
+            queue.offer(d);
+            enqueued.incrementAndGet();
         }
 
         @Override
         public void flush(boolean endOfInput) throws IOException {
-            if (pendingCount == 0) return;
-            try {
-                stmt.executeBatch();
-                pendingCount = 0;
-            } catch (Exception e) {
-                throw new IOException("ClickHouse batch flush failed", e);
+            forceFlush = true;
+            long target = enqueued.get();
+            while (committed.get() < target && flushError == null) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
+            forceFlush = false;
+            if (flushError != null) throw flushError;
         }
 
         @Override
         public void close() throws Exception {
-            try {
-                flush(true);
-            } finally {
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            }
+            running = false;
+            flusher.join(30_000);
+            if (stmt != null) stmt.close();
+            if (conn != null) conn.close();
         }
     }
 }

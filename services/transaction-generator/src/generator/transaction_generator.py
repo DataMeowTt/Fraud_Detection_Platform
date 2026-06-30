@@ -110,7 +110,7 @@ def generate(tps: int,
              accounts: dict,
              fraud_scenarios: list,
              random_injectors: dict = {},
-             random_fraud_prob: float = 0.0):
+             fraud_ratio: tuple = (0.0, 0.0)):
 
     fraud_by_sec: dict[int, list] = {}
     for acc, injector, trigger_sec in fraud_scenarios:
@@ -149,19 +149,22 @@ def generate(tps: int,
             for acc, injector in fraud_by_sec[sec]:
                 batch.extend(injector(acc, window_start, window_end))
 
-        if random.random() < random_fraud_prob:
-            pattern_name = random.choice(RANDOM_PATTERNS)
-            rnd_acc      = random.choice(seen_stack)
-            new_txs      = random_injectors[pattern_name](rnd_acc, window_start, window_end, ctx=ctx)
-
-            for tx in new_txs:
-                tx_dt = datetime.fromisoformat(tx.event_time)
-                if window_start <= tx_dt < window_end:
-                    batch.append(tx)
-                else:
-                    target = ctx.find_sec(tx_dt)
-                    if target > sec:
-                        pending.setdefault(target, []).append(tx)
+        if random_injectors and fraud_ratio[1] > 0:
+            target_count = random.randint(int(tps * fraud_ratio[0]), int(tps * fraud_ratio[1]))
+            injected = 0
+            while injected < target_count:
+                pattern_name = random.choice(RANDOM_PATTERNS)
+                rnd_acc      = random.choice(seen_stack)
+                new_txs      = random_injectors[pattern_name](rnd_acc, window_start, window_end, ctx=ctx)
+                for tx in new_txs:
+                    tx_dt = datetime.fromisoformat(tx.event_time)
+                    if window_start <= tx_dt < window_end:
+                        batch.append(tx)
+                    else:
+                        target_sec = ctx.find_sec(tx_dt)
+                        if target_sec > sec:
+                            pending.setdefault(target_sec, []).append(tx)
+                injected += len(new_txs)
 
         batch.sort(key=lambda tx: tx.event_time)
         yield batch, window_start, window_end

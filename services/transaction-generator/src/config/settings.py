@@ -2,7 +2,6 @@ import os
 from datetime import datetime, timezone
 
 NUM_ACCOUNTS = 100_000
-FRAUD_RATE   = 0.025
 
 CHANNELS        = ["ATM", "POS", "ONLINE"]
 CHANNEL_WEIGHTS = [0.25,  0.05,   0.70]
@@ -14,7 +13,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092"
 # Transaction generator 
 
 TPS               = 5000
-RANDOM_FRAUD_PROB = 0.30
+FRAUD_RATIO = (0.020, 0.025)
 START_DATE = datetime(2026, 6, 24, 16, 0, 0, tzinfo=timezone.utc)
 
 WINDOWS = [

@@ -47,7 +47,7 @@ def make_high_frequency(account: AccountProfile, ws: datetime, we: datetime, *, 
                          random.randint(100_001_000, 150_000_000),
                          account.home_location,
                          channel,
-                         i == 2, FraudPattern.HIGH_FREQUENCY)
+                         i > 0, FraudPattern.HIGH_FREQUENCY)
         for i, t in enumerate(times)
     ]
 
@@ -80,7 +80,7 @@ def make_declined_burst_transaction(account: AccountProfile, ws: datetime, we: d
     times = sorted(base + timedelta(seconds=random.uniform(0, 120)) for _ in range(3))
     return [
         make_transaction(account, t,
-                         round(random.uniform(20, 100) * account.avg_amount, -3),
+                         round(random.uniform(3, 10) * account.avg_amount, -3),
                          account.home_location,
                          channel,
                          i == 2, FraudPattern.DECLINED_BURST,
@@ -217,8 +217,8 @@ def make_advanced_high_frequency_v1(account: AccountProfile, ws: datetime, we: d
         make_transaction(account, t,
                          random.randint(70_000_000, 99_000_000),
                          account.home_location, channel,
-                         True, FraudPattern.ADVANCED_HIGH_FREQUENCY_V1)
-        for t in times
+                         i > 0, FraudPattern.ADVANCED_HIGH_FREQUENCY_V1)
+        for i, t in enumerate(times)
     ]
 
 
@@ -269,7 +269,7 @@ def make_advanced_high_frequency_v2(account: AccountProfile, ws: datetime, we: d
             account, t, amount,
             account.home_location,
             random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
-            True, FraudPattern.ADVANCED_HIGH_FREQUENCY_V2,
+            i > 0, FraudPattern.ADVANCED_HIGH_FREQUENCY_V2,
         ))
 
     return txs

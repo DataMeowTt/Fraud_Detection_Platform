@@ -27,7 +27,9 @@ public class DecisionAggregatorJob {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(8);
-        env.enableCheckpointing(60_000);
+        env.enableCheckpointing(600_000);
+        env.getCheckpointConfig().setCheckpointingConsistencyMode(
+                org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE);
 
         KafkaSource<Transaction> txSource = KafkaSource.<Transaction>builder()
                 .setBootstrapServers(KAFKA_BROKERS)

@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS fraud_detection.transactions
 
     decision       Enum8('APPROVED' = 1, 'ALERT' = 2, 'BLOCK' = 3)
 )
-ENGINE = MergeTree()
-ORDER BY produced_at;
+ENGINE = ReplacingMergeTree()
+ORDER BY transaction_id;
 
 CREATE TABLE IF NOT EXISTS fraud_detection.accounts
 (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS fraud_detection.accounts
     home_location  String,
     avg_amount     UInt64
 )
-ENGINE = MergeTree()
+ENGINE = ReplacingMergeTree()
 ORDER BY account_id;
 
 CREATE TABLE IF NOT EXISTS fraud_detection.ground_true_transactions
@@ -41,5 +41,5 @@ CREATE TABLE IF NOT EXISTS fraud_detection.ground_true_transactions
     is_fraud       Bool,
     fraud_pattern  String
 )
-ENGINE = MergeTree()
+ENGINE = ReplacingMergeTree()
 ORDER BY (event_time, transaction_id);

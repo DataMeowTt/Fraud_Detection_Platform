@@ -1,0 +1,314 @@
+{
+  "title": "Fraud Detection Overview",
+  "uid": "fraud-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "utc",
+  "tags": ["fraud", "clickhouse"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Transactions",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT count() AS Total FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6'"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "unit": "short" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "FDR — Fraud Detection Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision IN ('ALERT','BLOCK') AND g.is_fraud = true) * 100.0 / nullIf(countIf(g.is_fraud = true), 0), 2) AS FDR FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id != 'FRD_RULE_UPDATE_SC6'"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "green", "value": 75 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "FPR — False Positive Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision IN ('ALERT','BLOCK') AND g.is_fraud = false) * 100.0 / nullIf(countIf(g.is_fraud = false), 0), 2) AS FPR FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id != 'FRD_RULE_UPDATE_SC6'"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Avg Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(avg(dateDiff('millisecond', produced_at, decided_at)), 0) AS AvgLatency FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6')"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "P99 Latency",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)), 0) AS P99 FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6')"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 2000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Throughput (tx/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 0,
+          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, count() AS Throughput FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "options": { "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 8,
+      "title": "Decision Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 0,
+          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, countIf(decision = 'APPROVED') AS APPROVED, countIf(decision = 'ALERT') AS ALERT, countIf(decision = 'BLOCK') AS BLOCK FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "APPROVED" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "ALERT" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "BLOCK" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 9,
+      "title": "Latency Percentiles (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 0,
+          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, quantile(0.50)(dateDiff('millisecond', produced_at, decided_at)) AS p50, quantile(0.90)(dateDiff('millisecond', produced_at, decided_at)) AS p90, quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)) AS p99, max(dateDiff('millisecond', produced_at, decided_at)) AS max_ms FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6') GROUP BY time ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "max_ms" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "p99" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "p90" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "p50" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 10,
+      "title": "Fraud Pattern Breakdown",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS pattern, count() AS total FROM fraud_detection.transactions WHERE decision IN ('ALERT','BLOCK') AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY pattern ORDER BY total DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "total" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "custom.displayMode", "value": "color-background" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "orange", "value": 5 },
+                    { "color": "red", "value": 20 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": { "footer": { "show": false } }
+    },
+    {
+      "id": 11,
+      "title": "Top 20 Slowest Transactions",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT account_id, decision, multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS trigger, round(dateDiff('millisecond', produced_at, decided_at)) AS latency_ms FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6') ORDER BY latency_ms DESC LIMIT 20"
+        }
+      ],
+      "options": {
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "latency_ms" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 500 },
+                    { "color": "red", "value": 2000 }
+                  ]
+                }
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

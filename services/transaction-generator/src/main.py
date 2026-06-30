@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from src.config.settings import (
     DOMESTIC_LOCS, KAFKA_BOOTSTRAP_SERVERS,
     TPS, START_DATE, WINDOWS, SCENARIOS, RULE_UPDATES, DEFAULT_RULES,
-    RANDOM_FRAUD_PROB,
+    FRAUD_RATIO,
 )
 from src.generator.fraud_simulator import INJECTOR_MAP
 from src.generator.models import AccountProfile
@@ -71,7 +71,7 @@ def main():
     try:
         for sec, (batch, ws, we) in enumerate(generate(TPS, START_DATE, WINDOWS, accounts, fraud_scenarios,
                                                        random_injectors=INJECTOR_MAP,
-                                                       random_fraud_prob=RANDOM_FRAUD_PROB)):
+                                                       fraud_ratio=FRAUD_RATIO)):
             deadline = time.monotonic() + 1.0
 
             if sec in RULE_UPDATES:
