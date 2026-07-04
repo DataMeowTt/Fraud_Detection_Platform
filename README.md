@@ -32,8 +32,8 @@ in [`TASK.md`](TASK.md).
 ## Repository Layout
 
 ```
-flink-jobs/               Java/Maven multi-module Flink job
-  common/                 shared models, (de)serializers
+flink-jobs/                Java/Maven multi-module Flink job
+  common/                  shared models, (de)serializers
   rule-engine/             Rules Engine (Broadcast State Pattern)
   cep-engine/              CEP Engine (4 sequence-based fraud patterns)
   ml-scoring/              feature extraction + XGBoost scoring
@@ -57,8 +57,8 @@ pip install -r requirements.txt
 
 make up                      # docker compose up + build + submit the Flink job
 make benchmark                # optional: run the stress test (see benchmarks/)
-make down                     # truncate ClickHouse + docker compose down
-make reset                     # wipe ClickHouse/Kafka/checkpoints and resubmit fresh
+make down                      # truncate ClickHouse + docker compose down
+make reset                      # wipe ClickHouse/Kafka/checkpoints and resubmit fresh
 ```
 
 Run `make` with no arguments to list all available targets. See
