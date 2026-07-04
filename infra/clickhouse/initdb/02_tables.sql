@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS fraud_detection.accounts
+(
+    account_id     String,
+    card_id        String,
+    home_location  String,
+    avg_amount     UInt64
+)
+ENGINE = ReplacingMergeTree()
+ORDER BY account_id;
+
 CREATE TABLE IF NOT EXISTS fraud_detection.transactions
 (
     transaction_id String,
@@ -16,16 +26,6 @@ CREATE TABLE IF NOT EXISTS fraud_detection.transactions
 )
 ENGINE = ReplacingMergeTree()
 ORDER BY transaction_id;
-
-CREATE TABLE IF NOT EXISTS fraud_detection.accounts
-(
-    account_id     String,
-    card_id        String,
-    home_location  String,
-    avg_amount     UInt64
-)
-ENGINE = ReplacingMergeTree()
-ORDER BY account_id;
 
 CREATE TABLE IF NOT EXISTS fraud_detection.ground_true_transactions
 (

@@ -12,9 +12,9 @@ client = Minio(
 
 client.fput_object(
     bucket_name="ml-models",
-    object_name="fraud_model.json",
+    object_name="model_detection.json",
     file_path=str(model_path),
     content_type="application/json",
 )
 
-print(f"Uploaded: {model_path.name} → ml-models/fraud_model.json")
+print(f"Uploaded: {model_path.name} → ml-models/model_detection.json")

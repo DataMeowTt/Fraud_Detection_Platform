@@ -49,5 +49,22 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils</artifactId>
         </dependency>
+
+        <!-- ClickHouse JDBC — queries fraud_detection.transactions in RuleEngineTest latency check -->
+        <dependency>
+            <groupId>com.clickhouse</groupId>
+            <artifactId>clickhouse-jdbc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.clickhouse</groupId>
+            <artifactId>clickhouse-http-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

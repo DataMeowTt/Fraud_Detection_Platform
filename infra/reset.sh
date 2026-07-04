@@ -39,7 +39,7 @@ docker exec $KAFKA $KAFKA_BIN/kafka-topics.sh \
 sleep 3
 docker exec $KAFKA $KAFKA_BIN/kafka-topics.sh \
     --bootstrap-server $KAFKA:19092 \
-    --create --topic transactions --partitions 8 --replication-factor 2 \
+    --create --topic transactions --partitions 10 --replication-factor 2 \
     || fail "create topic transactions"
 docker exec $KAFKA $KAFKA_BIN/kafka-topics.sh \
     --bootstrap-server $KAFKA:19092 \

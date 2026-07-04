@@ -33,7 +33,8 @@ public class ClickHouseSink implements Sink<FraudDecision> {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
-        private static final int BATCH_SIZE = 5000;
+        private static final int  BATCH_SIZE  = 5000;
+        private static final long MAX_WAIT_MS = 2000;
 
         private final Connection        conn;
         private final PreparedStatement stmt;
@@ -59,14 +60,19 @@ public class ClickHouseSink implements Sink<FraudDecision> {
 
         private void flushLoop() {
             List<FraudDecision> batch = new ArrayList<>(BATCH_SIZE);
+            long batchStartMs = 0;
             while (running || !queue.isEmpty()) {
                 try {
                     FraudDecision d = queue.poll(50, TimeUnit.MILLISECONDS);
                     if (d != null) {
+                        if (batch.isEmpty()) {
+                            batchStartMs = System.currentTimeMillis();
+                        }
                         batch.add(d);
                         queue.drainTo(batch, BATCH_SIZE - batch.size());
                     }
-                    if (!batch.isEmpty() && (batch.size() >= BATCH_SIZE || forceFlush || !running)) {
+                    boolean timedOut = !batch.isEmpty() && (System.currentTimeMillis() - batchStartMs >= MAX_WAIT_MS);
+                    if (!batch.isEmpty() && (batch.size() >= BATCH_SIZE || forceFlush || !running || timedOut)) {
                         executeBatch(batch);
                         committed.addAndGet(batch.size());
                         batch.clear();

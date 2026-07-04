@@ -22,9 +22,12 @@ public class FraudScorer implements Serializable {
         String modelKey  = System.getenv().getOrDefault("MINIO_MODEL_KEY",      "model_detection.json");
         threshold        = Float.parseFloat(
                            System.getenv().getOrDefault("ML_FRAUD_THRESHOLD",   "0.9184"));
+        int nthread      = Integer.parseInt(
+                           System.getenv().getOrDefault("ML_SCORER_NTHREAD",    "2"));
 
         byte[] modelBytes = ModelLoader.load(endpoint, accessKey, secretKey, bucket, modelKey);
         booster = XGBoost.loadModel(modelBytes);
+        booster.setParam("nthread", nthread);
     }
 
     public float[] scoreBatch(float[][] featuresBatch) throws Exception {
