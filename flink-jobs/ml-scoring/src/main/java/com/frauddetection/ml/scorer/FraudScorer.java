@@ -27,10 +27,21 @@ public class FraudScorer implements Serializable {
         booster = XGBoost.loadModel(modelBytes);
     }
 
-    public float score(float[] features) throws Exception {
-        DMatrix matrix = new DMatrix(features, 1, NUM_FEATURES, Float.NaN);
+    public float[] scoreBatch(float[][] featuresBatch) throws Exception {
+        int batchSize = featuresBatch.length;
+        float[] flat = new float[batchSize * NUM_FEATURES];
+        for (int i = 0; i < batchSize; i++) {
+            System.arraycopy(featuresBatch[i], 0, flat, i * NUM_FEATURES, NUM_FEATURES);
+        }
+
+        DMatrix matrix = new DMatrix(flat, batchSize, NUM_FEATURES, Float.NaN);
         try {
-            return booster.predict(matrix)[0][0];
+            float[][] predictions = booster.predict(matrix);
+            float[] scores = new float[batchSize];
+            for (int i = 0; i < batchSize; i++) {
+                scores[i] = predictions[i][0];
+            }
+            return scores;
         } finally {
             matrix.dispose();
         }

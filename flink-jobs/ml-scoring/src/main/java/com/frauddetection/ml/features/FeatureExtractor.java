@@ -9,7 +9,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -24,10 +24,10 @@ public class FeatureExtractor implements Serializable {
     private static final Set<String> DOMESTIC_LOCS = Set.of(
             "Hanoi", "HCM City", "Da Nang", "Can Tho", "Hai Phong"
     );
-    private transient ListState<Tuple3<Long, Long, Boolean>> txHistory;
+    private transient ListState<Tuple4<String, Long, Long, Boolean>> txHistory;
     private transient ValueState<String> homeLocation;
     private transient Transaction cachedForTx;
-    private transient List<Tuple3<Long, Long, Boolean>> cachedHistory;
+    private transient List<Tuple4<String, Long, Long, Boolean>> cachedHistory;
 
     public void open(RuntimeContext ctx) throws Exception {
         StateTtlConfig ttl = StateTtlConfig.newBuilder(Duration.ofHours(24))
@@ -35,9 +35,9 @@ public class FeatureExtractor implements Serializable {
                 .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
                 .build();
 
-        ListStateDescriptor<Tuple3<Long, Long, Boolean>> histDesc = new ListStateDescriptor<>(
+        ListStateDescriptor<Tuple4<String, Long, Long, Boolean>> histDesc = new ListStateDescriptor<>(
                 "ml.txHistory",
-                TypeInformation.of(new TypeHint<Tuple3<Long, Long, Boolean>>() {})
+                TypeInformation.of(new TypeHint<Tuple4<String, Long, Long, Boolean>>() {})
         );
         histDesc.enableTimeToLive(ttl);
         txHistory = ctx.getListState(histDesc);
@@ -55,10 +55,10 @@ public class FeatureExtractor implements Serializable {
         String home = homeLocation.value();
         float isHome = (home == null) ? isDomestic : (home.equals(tx.locationName) ? 1.0f : 0.0f);
 
-        List<Tuple3<Long, Long, Boolean>> history = new ArrayList<>();
-        Iterable<Tuple3<Long, Long, Boolean>> stored = txHistory.get();
+        List<Tuple4<String, Long, Long, Boolean>> history = new ArrayList<>();
+        Iterable<Tuple4<String, Long, Long, Boolean>> stored = txHistory.get();
         if (stored != null) {
-            for (Tuple3<Long, Long, Boolean> e : stored) history.add(e);
+            for (Tuple4<String, Long, Long, Boolean> e : stored) history.add(e);
         }
         cachedForTx   = tx;
         cachedHistory = history;
@@ -73,46 +73,72 @@ public class FeatureExtractor implements Serializable {
         int    count1h    = 0;
         long   lastTs     = 0;
 
-        for (Tuple3<Long, Long, Boolean> e : history) {
-            if (e.f0 >= cutoff24h && e.f2) { sumAmounts += e.f1; count24h++; }
-            if (e.f0 >= cutoff3h)    count3h++;
-            if (e.f0 >= cutoff1h)    count1h++;
-            if (e.f0 > lastTs)       lastTs = e.f0;
+        for (Tuple4<String, Long, Long, Boolean> e : history) {
+            if (e.f1 >= cutoff24h && e.f3) { sumAmounts += e.f2; count24h++; }
+            if (e.f1 >= cutoff3h)    count3h++;
+            if (e.f1 >= cutoff1h)    count1h++;
+            if (e.f1 > lastTs)       lastTs = e.f1;
         }
 
-        float avg24h    = count24h > 0 ? (float) (sumAmounts / count24h) : amount;
-        float ratio     = avg24h   > 0 ? amount / avg24h : 1.0f;
-        float timeSince = lastTs   > 0 ? (float) ((currentTs - lastTs) / 1000.0) : 0.0f;
+        float avg24h         = count24h > 0 ? (float) (sumAmounts / count24h) : amount;
+        float logAmountRatio = avg24h   > 0 ? (float) Math.log1p(amount / avg24h) : (float) Math.log1p(1.0);
+        float timeSince      = lastTs   > 0 ? (float) ((currentTs - lastTs) / 1000.0) : 0.0f;
 
-        return new float[]{amount, hourOfDay, isHome, isDomestic, avg24h, ratio, (float) count1h, (float) count3h, timeSince};
+        return new float[]{amount, hourOfDay, isHome, isDomestic, avg24h, logAmountRatio, (float) count1h, (float) count3h, timeSince};
     }
 
-    public void update(Transaction tx, boolean includeInAvg) throws Exception {
+    public void recordArrival(Transaction tx) throws Exception {
         long currentTs = Instant.parse(tx.eventTime).toEpochMilli();
         long cutoff24h = currentTs - 24L * 3_600_000;
 
-        List<Tuple3<Long, Long, Boolean>> stored;
+        List<Tuple4<String, Long, Long, Boolean>> stored;
         if (cachedForTx == tx) {
-            stored = cachedHistory; 
+            stored = cachedHistory;
         } else {
             stored = new ArrayList<>();
-            Iterable<Tuple3<Long, Long, Boolean>> fetched = txHistory.get();
+            Iterable<Tuple4<String, Long, Long, Boolean>> fetched = txHistory.get();
             if (fetched != null) {
-                for (Tuple3<Long, Long, Boolean> e : fetched) stored.add(e);
+                for (Tuple4<String, Long, Long, Boolean> e : fetched) stored.add(e);
             }
         }
         cachedForTx   = null;
         cachedHistory = null;
 
-        List<Tuple3<Long, Long, Boolean>> kept = new ArrayList<>();
-        for (Tuple3<Long, Long, Boolean> e : stored) {
-            if (e.f0 >= cutoff24h) kept.add(e);
+        List<Tuple4<String, Long, Long, Boolean>> kept = new ArrayList<>();
+        for (Tuple4<String, Long, Long, Boolean> e : stored) {
+            if (e.f1 >= cutoff24h) kept.add(e);
         }
-        kept.add(Tuple3.of(currentTs, tx.amount, includeInAvg));
+        kept.add(Tuple4.of(tx.transactionId, currentTs, tx.amount, true));
         txHistory.update(kept);
 
         if (homeLocation.value() == null) {
             homeLocation.update(tx.locationName);
         }
+    }
+
+    public void finalizeAvgFlag(Transaction tx, boolean includeInAvg) throws Exception {
+        if (includeInAvg) {
+            return;
+        }
+
+        List<Tuple4<String, Long, Long, Boolean>> stored = new ArrayList<>();
+        Iterable<Tuple4<String, Long, Long, Boolean>> fetched = txHistory.get();
+        if (fetched != null) {
+            for (Tuple4<String, Long, Long, Boolean> e : fetched) stored.add(e);
+        }
+
+        for (int i = 0; i < stored.size(); i++) {
+            Tuple4<String, Long, Long, Boolean> e = stored.get(i);
+            if (e.f0.equals(tx.transactionId)) {
+                stored.set(i, Tuple4.of(e.f0, e.f1, e.f2, false));
+                txHistory.update(stored);
+                return;
+            }
+        }
+    }
+
+    public void update(Transaction tx, boolean includeInAvg) throws Exception {
+        recordArrival(tx);
+        finalizeAvgFlag(tx, includeInAvg);
     }
 }
