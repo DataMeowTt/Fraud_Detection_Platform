@@ -20,6 +20,8 @@ RANDOM_PATTERNS = [
     "ADVANCED_HIGH_FREQUENCY_V2",
 ]
 
+RANDOM_PATTERN_WEIGHTS = [3, 3, 3, 3, 3, 3, 1, 1, 1]
+
 class WindowContext:
 
     def __init__(self, windows: list, idx: int, cycle: int, start_date: datetime):
@@ -104,7 +106,7 @@ def make_normal_transaction(account: AccountProfile, event_dt: datetime) -> Tran
     )
 
 
-def generate(tps: int,
+def generate(tps_ref: list,
              start_date: datetime,
              windows: list,
              accounts: dict,
@@ -135,7 +137,7 @@ def generate(tps: int,
         # Drain txs đã được defer cho sec này
         batch: list = pending.pop(sec, [])
 
-        for _ in range(tps):
+        for _ in range(tps_ref[0]):
             acc = random.choice(acc_list)
             if acc.account_id not in seen_set:
                 seen_set.add(acc.account_id)
@@ -150,10 +152,10 @@ def generate(tps: int,
                 batch.extend(injector(acc, window_start, window_end))
 
         if random_injectors and fraud_ratio[1] > 0:
-            target_count = random.randint(int(tps * fraud_ratio[0]), int(tps * fraud_ratio[1]))
+            target_count = random.randint(int(tps_ref[0] * fraud_ratio[0]), int(tps_ref[0] * fraud_ratio[1]))
             injected = 0
             while injected < target_count:
-                pattern_name = random.choice(RANDOM_PATTERNS)
+                pattern_name = random.choices(RANDOM_PATTERNS, weights=RANDOM_PATTERN_WEIGHTS, k=1)[0]
                 rnd_acc      = random.choice(seen_stack)
                 new_txs      = random_injectors[pattern_name](rnd_acc, window_start, window_end, ctx=ctx)
                 for tx in new_txs:

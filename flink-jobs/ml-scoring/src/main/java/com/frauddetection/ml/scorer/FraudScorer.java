@@ -19,9 +19,9 @@ public class FraudScorer implements Serializable {
         String accessKey = System.getenv().getOrDefault("MINIO_ACCESS_KEY",     "minioadmin");
         String secretKey = System.getenv().getOrDefault("MINIO_SECRET_KEY",     "minioadmin123");
         String bucket    = System.getenv().getOrDefault("MINIO_BUCKET",         "ml-models");
-        String modelKey  = System.getenv().getOrDefault("MINIO_MODEL_KEY",      "model.json");
+        String modelKey  = System.getenv().getOrDefault("MINIO_MODEL_KEY",      "model_detection.json");
         threshold        = Float.parseFloat(
-                           System.getenv().getOrDefault("ML_FRAUD_THRESHOLD",   "0.9478"));
+                           System.getenv().getOrDefault("ML_FRAUD_THRESHOLD",   "0.9184"));
 
         byte[] modelBytes = ModelLoader.load(endpoint, accessKey, secretKey, bucket, modelKey);
         booster = XGBoost.loadModel(modelBytes);

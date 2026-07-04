@@ -108,7 +108,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 1,
-          "rawSql": "SELECT round(avg(dateDiff('millisecond', produced_at, decided_at)), 0) AS AvgLatency FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6')"
+          "rawSql": "SELECT round(avg(dateDiff('millisecond', produced_at, decided_at)), 0) AS AvgLatency FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND produced_at >= addSeconds((SELECT min(produced_at) FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6'), 5)"
         }
       ],
       "options": {
@@ -141,7 +141,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 1,
-          "rawSql": "SELECT round(quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)), 0) AS P99 FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6')"
+          "rawSql": "SELECT round(quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)), 0) AS P99 FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND produced_at >= addSeconds((SELECT min(produced_at) FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6'), 5)"
         }
       ],
       "options": {
@@ -174,7 +174,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 0,
-          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, count() AS Throughput FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
+          "rawSql": "SELECT toStartOfSecond(decided_at) AS time, count() AS Throughput FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
         }
       ],
       "fieldConfig": {
@@ -193,7 +193,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 0,
-          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, countIf(decision = 'APPROVED') AS APPROVED, countIf(decision = 'ALERT') AS ALERT, countIf(decision = 'BLOCK') AS BLOCK FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
+          "rawSql": "SELECT toStartOfSecond(decided_at) AS time, countIf(decision = 'APPROVED') AS APPROVED, countIf(decision = 'ALERT') AS ALERT, countIf(decision = 'BLOCK') AS BLOCK FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY time ORDER BY time"
         }
       ],
       "fieldConfig": {
@@ -217,7 +217,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 0,
-          "rawSql": "SELECT toStartOfInterval(decided_at, INTERVAL 10 SECOND) AS time, quantile(0.50)(dateDiff('millisecond', produced_at, decided_at)) AS p50, quantile(0.90)(dateDiff('millisecond', produced_at, decided_at)) AS p90, quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)) AS p99, max(dateDiff('millisecond', produced_at, decided_at)) AS max_ms FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6') GROUP BY time ORDER BY time"
+          "rawSql": "SELECT toStartOfSecond(decided_at) AS time, quantile(0.50)(dateDiff('millisecond', produced_at, decided_at)) AS p50, quantile(0.90)(dateDiff('millisecond', produced_at, decided_at)) AS p90, quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)) AS p99, max(dateDiff('millisecond', produced_at, decided_at)) AS max_ms FROM fraud_detection.transactions WHERE $__timeFilter(decided_at) AND account_id != 'FRD_RULE_UPDATE_SC6' AND produced_at >= addSeconds((SELECT min(produced_at) FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6'), 5) GROUP BY time ORDER BY time"
         }
       ],
       "fieldConfig": {
@@ -242,7 +242,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 1,
-          "rawSql": "SELECT multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS pattern, count() AS total FROM fraud_detection.transactions WHERE decision IN ('ALERT','BLOCK') AND account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY pattern ORDER BY total DESC"
+          "rawSql": "SELECT multiIf(t.cep_pattern IS NOT NULL, t.cep_pattern, t.rule_hit IS NOT NULL, t.rule_hit, g.fraud_pattern IS NOT NULL AND g.fraud_pattern != '', g.fraud_pattern, 'ML') AS pattern, count() AS total FROM fraud_detection.transactions t LEFT JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.decision IN ('ALERT','BLOCK') AND t.account_id != 'FRD_RULE_UPDATE_SC6' GROUP BY pattern ORDER BY total DESC"
         }
       ],
       "fieldConfig": {
@@ -281,7 +281,7 @@
           "refId": "A",
           "queryType": "sql",
           "format": 1,
-          "rawSql": "SELECT account_id, decision, multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS trigger, round(dateDiff('millisecond', produced_at, decided_at)) AS latency_ms FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND decided_at >= (SELECT min(decided_at) + INTERVAL 10 SECOND FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6') ORDER BY latency_ms DESC LIMIT 20"
+          "rawSql": "SELECT account_id, decision, multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS trigger, round(dateDiff('millisecond', produced_at, decided_at)) AS latency_ms FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6' AND produced_at >= addSeconds((SELECT min(produced_at) FROM fraud_detection.transactions WHERE account_id != 'FRD_RULE_UPDATE_SC6'), 5) ORDER BY latency_ms DESC LIMIT 20"
         }
       ],
       "options": {

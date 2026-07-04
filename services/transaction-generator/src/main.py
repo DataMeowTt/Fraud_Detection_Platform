@@ -1,9 +1,10 @@
+import argparse
 import queue
 import random
 import threading
 import time
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from src.config.settings import (
     DOMESTIC_LOCS, KAFKA_BOOTSTRAP_SERVERS,
@@ -12,9 +13,24 @@ from src.config.settings import (
 )
 from src.generator.fraud_simulator import INJECTOR_MAP
 from src.generator.models import AccountProfile
-from src.generator.transaction_generator import generate, make_normal_transaction
+from src.generator.transaction_generator import generate
 from src.producer import create_producer, produce_batch, produce_rule_update
 from src.utils.clickhouse_utils import get_client, read_accounts, insert_ground_truth_batch
+
+
+def tps_file_watcher(tps_ref: list, stop_event: threading.Event, path: str = "/tmp/tps_control"):
+    last_val = tps_ref[0]
+    while not stop_event.is_set():
+        try:
+            with open(path) as f:
+                val = int(f.read().strip())
+            if val > 0 and val != last_val:
+                tps_ref[0] = val
+                last_val = val
+                print(f"[TPS] → {val}", flush=True)
+        except (FileNotFoundError, ValueError):
+            pass
+        time.sleep(1)
 
 
 def flush_worker(ch_client, write_queue: queue.Queue, stop_event: threading.Event):
@@ -28,6 +44,11 @@ def flush_worker(ch_client, write_queue: queue.Queue, stop_event: threading.Even
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tps", type=int, default=TPS)
+    args = parser.parse_args()
+
+    tps_ref = [args.tps]
     random.seed(42)
 
     ch_client = get_client()
@@ -48,14 +69,8 @@ def main():
 
     for rule in DEFAULT_RULES:
         produce_rule_update(producer, rule)
-    print(f"[Rules] Seeded {len(DEFAULT_RULES)} default rule(s)")
-
-    rule_update_acc = AccountProfile(
-        account_id    = "FRD_RULE_UPDATE_SC6",
-        card_id       = "FRD_CARD_00006",
-        home_location = random.choice(DOMESTIC_LOCS),
-        avg_amount    = 2_000_000,
-    )
+    producer.flush()
+    time.sleep(2)
 
     write_queue = queue.Queue()
     stop_event  = threading.Event()
@@ -65,11 +80,18 @@ def main():
         daemon=True,
     )
     flush_thread.start()
+    tps_watch_thread = threading.Thread(
+        target=tps_file_watcher,
+        args=(tps_ref, stop_event),
+        daemon=True,
+    )
+    tps_watch_thread.start()
+    print(f"[TPS] Starting at {tps_ref[0]} TPS  (change: docker exec <container> sh -c \"echo <val> > /tmp/tps_control\")")
 
     total = fraud_count = 0
 
     try:
-        for sec, (batch, ws, we) in enumerate(generate(TPS, START_DATE, WINDOWS, accounts, fraud_scenarios,
+        for sec, (batch, ws, we) in enumerate(generate(tps_ref, START_DATE, WINDOWS, accounts, fraud_scenarios,
                                                        random_injectors=INJECTOR_MAP,
                                                        fraud_ratio=FRAUD_RATIO)):
             deadline = time.monotonic() + 1.0
@@ -80,27 +102,6 @@ def main():
                 with open("rule_update_time.txt", "w") as f:
                     f.write(rule_produced_at)
 
-                burst = [
-                    make_normal_transaction(
-                        rule_update_acc,
-                        ws + timedelta(seconds=random.uniform(0, (we - ws).total_seconds())),
-                    )
-                    for _ in range(500)
-                ]
-                burst_rows = [asdict(tx) for tx in burst]
-                produce_batch(producer, burst_rows)
-                producer.flush()
-                for tx, row in zip(burst, burst_rows):
-                    tx.produced_at = row["produced_at"]
-                write_queue.put(burst)
-                total += len(burst)
-                print(f"[Rules] burst {len(burst)} txs for {rule_update_acc.account_id}")
-
-                remaining = deadline - time.monotonic()
-                if remaining > 0:
-                    time.sleep(remaining)
-                continue
-
             rows = [asdict(tx) for tx in batch]
             produce_batch(producer, rows)
             for tx, row in zip(batch, rows):
@@ -110,7 +111,7 @@ def main():
             fraud_count += sum(1 for tx in batch if tx.is_fraud)
             total       += len(batch)
             window_label = f"{ws.strftime('%H:%M')}-{we.strftime('%H:%M')}"
-            print(f"[sec {sec:>4}] window={window_label}  sent {len(batch):>5} txs  fraud={fraud_count}")
+            print(f"[sec {sec:>4}] tps={tps_ref[0]:>5}  window={window_label}  sent {len(batch):>5} txs  fraud={fraud_count}")
 
             remaining = deadline - time.monotonic()
             if remaining > 0:

@@ -80,7 +80,7 @@ def make_declined_burst_transaction(account: AccountProfile, ws: datetime, we: d
     times = sorted(base + timedelta(seconds=random.uniform(0, 120)) for _ in range(3))
     return [
         make_transaction(account, t,
-                         round(random.uniform(3, 10) * account.avg_amount, -3),
+                         random.randint(20_000_000, 50_000_000),
                          account.home_location,
                          channel,
                          i == 2, FraudPattern.DECLINED_BURST,
@@ -141,18 +141,32 @@ def make_midnight_activity(account: AccountProfile, ws: datetime, we: datetime, 
     ]
 
 
-def make_under_thread_activity(account: AccountProfile, ws: datetime, we: datetime, *, ctx=None) -> list:
-    n        = random.randint(1, 2)
-    location = pick_location(account.home_location)
-    return [
+def make_under_thread_activity(account: AccountProfile, ws: datetime, we: datetime, *, ctx: WindowContext = None) -> list:
+    if ctx is None:
+        raise ValueError("make_under_thread_activity requires ctx")
+
+    normal_tx = make_transaction(
+        account, rand_date(ws, we),
+        make_transaction_amount_normal(account),
+        account.home_location,
+        random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
+        False, FraudPattern.NONE,
+    )
+
+    w2_s, w2_e = ctx.next_window()
+    n           = random.randint(1, 2)
+    location    = pick_location(account.home_location)
+    fraud_txs   = [
         make_transaction(account,
-                         rand_date(ws, we),
-                         random.randint(600_001_000, 999_999_999),
+                         rand_date(w2_s, w2_e),
+                         random.randint(900_001_000, 999_999_999),
                          location,
                          random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
                          True, FraudPattern.UNDER_THREAD_ACTIVITY)
         for _ in range(n)
     ]
+
+    return [normal_tx] + fraud_txs
 
 
 def make_advanced_location_jump(account: AccountProfile, ws: datetime, we: datetime, *, ctx: WindowContext = None) -> list:
@@ -201,7 +215,7 @@ def make_advanced_location_jump(account: AccountProfile, ws: datetime, we: datet
                          else random.randint(70_000_000, 99_999_999),
                          fraud_loc,
                          random.choices(CHANNELS, weights=CHANNEL_WEIGHTS)[0],
-                         True, FraudPattern.ADVANCED_LOCATION_JUMP)
+                         i > 0, FraudPattern.ADVANCED_LOCATION_JUMP)
         for i, t in enumerate(fraud_times)
     ]
 
@@ -215,7 +229,7 @@ def make_advanced_high_frequency_v1(account: AccountProfile, ws: datetime, we: d
     times   = sorted(ws + timedelta(seconds=random.uniform(0, span)) for _ in range(n_tx))
     return [
         make_transaction(account, t,
-                         random.randint(70_000_000, 99_000_000),
+                         random.randint(90_000_000, 99_000_000),
                          account.home_location, channel,
                          i > 0, FraudPattern.ADVANCED_HIGH_FREQUENCY_V1)
         for i, t in enumerate(times)

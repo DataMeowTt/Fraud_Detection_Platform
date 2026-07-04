@@ -159,8 +159,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 8
-        state.backend.type: rocksdb
+        parallelism.default: 10
+        state.backend.type: hashmap
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 600s
@@ -189,9 +189,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
-        parallelism.default: 8
-        taskmanager.numberOfTaskSlots: 8
-        state.backend.type: rocksdb
+        parallelism.default: 10
+        taskmanager.numberOfTaskSlots: 10
+        state.backend.type: hashmap
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 600s

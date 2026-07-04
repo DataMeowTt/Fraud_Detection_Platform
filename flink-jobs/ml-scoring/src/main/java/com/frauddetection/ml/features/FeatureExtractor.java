@@ -26,6 +26,8 @@ public class FeatureExtractor implements Serializable {
     );
     private transient ListState<Tuple3<Long, Long, Boolean>> txHistory;
     private transient ValueState<String> homeLocation;
+    private transient Transaction cachedForTx;
+    private transient List<Tuple3<Long, Long, Boolean>> cachedHistory;
 
     public void open(RuntimeContext ctx) throws Exception {
         StateTtlConfig ttl = StateTtlConfig.newBuilder(Duration.ofHours(24))
@@ -58,6 +60,8 @@ public class FeatureExtractor implements Serializable {
         if (stored != null) {
             for (Tuple3<Long, Long, Boolean> e : stored) history.add(e);
         }
+        cachedForTx   = tx;
+        cachedHistory = history;
 
         long cutoff24h = currentTs - 24L * 3_600_000;
         long cutoff3h  = currentTs -  3L * 3_600_000;
@@ -87,12 +91,22 @@ public class FeatureExtractor implements Serializable {
         long currentTs = Instant.parse(tx.eventTime).toEpochMilli();
         long cutoff24h = currentTs - 24L * 3_600_000;
 
-        List<Tuple3<Long, Long, Boolean>> kept = new ArrayList<>();
-        Iterable<Tuple3<Long, Long, Boolean>> stored = txHistory.get();
-        if (stored != null) {
-            for (Tuple3<Long, Long, Boolean> e : stored) {
-                if (e.f0 >= cutoff24h) kept.add(e);
+        List<Tuple3<Long, Long, Boolean>> stored;
+        if (cachedForTx == tx) {
+            stored = cachedHistory; 
+        } else {
+            stored = new ArrayList<>();
+            Iterable<Tuple3<Long, Long, Boolean>> fetched = txHistory.get();
+            if (fetched != null) {
+                for (Tuple3<Long, Long, Boolean> e : fetched) stored.add(e);
             }
+        }
+        cachedForTx   = null;
+        cachedHistory = null;
+
+        List<Tuple3<Long, Long, Boolean>> kept = new ArrayList<>();
+        for (Tuple3<Long, Long, Boolean> e : stored) {
+            if (e.f0 >= cutoff24h) kept.add(e);
         }
         kept.add(Tuple3.of(currentTs, tx.amount, includeInAvg));
         txHistory.update(kept);

@@ -26,7 +26,7 @@ public class DecisionAggregatorJob {
     public static void main(String[] args) throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(8);
+        env.setParallelism(10);
         env.enableCheckpointing(600_000);
         env.getCheckpointConfig().setCheckpointingConsistencyMode(
                 org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE);
