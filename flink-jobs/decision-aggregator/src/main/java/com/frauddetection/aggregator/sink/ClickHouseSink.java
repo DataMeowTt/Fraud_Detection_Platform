@@ -33,8 +33,8 @@ public class ClickHouseSink implements Sink<FraudDecision> {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
-        private static final int  BATCH_SIZE  = 5000;
-        private static final long MAX_WAIT_MS = 2000;
+        private static final int  BATCH_SIZE  = 500;
+        private static final long MAX_WAIT_MS = 500;
 
         private final Connection        conn;
         private final PreparedStatement stmt;
@@ -105,8 +105,8 @@ public class ClickHouseSink implements Sink<FraudDecision> {
                 stmt.setString(5, d.cepPattern);
                 if (d.mlScore != null) stmt.setFloat(6, d.mlScore);
                 else                   stmt.setNull(6, java.sql.Types.FLOAT);
-                stmt.setObject(7, java.time.OffsetDateTime.parse(d.producedAt).toLocalDateTime());
-                stmt.setObject(8, java.time.OffsetDateTime.parse(d.decidedAt).toLocalDateTime());
+                stmt.setObject(7, java.sql.Timestamp.from(java.time.Instant.parse(d.producedAt)));
+                stmt.setObject(8, java.sql.Timestamp.from(java.time.Instant.parse(d.decidedAt)));
                 stmt.setString(9, d.status.name());
                 stmt.addBatch();
             }

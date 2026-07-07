@@ -99,7 +99,7 @@ services:
     build: ../services/transaction-generator
     profiles: ["seed"]
     volumes:
-      - ../services/transaction-generator/src/rule_update_time.txt:/app/rule_update_time.txt
+      - ../schemas/transaction-schema.json:/app/schemas/transaction-schema.json:ro
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       CLICKHOUSE_HOST: clickhouse
@@ -155,12 +155,14 @@ services:
     ports:
       - "8081:8081"
       - "9249:9249"
+    volumes:
+      - ../schemas:/opt/flink/schemas:ro
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         parallelism.default: 10
-        state.backend.type: hashmap
+        state.backend.type: ${FLINK_STATE_BACKEND}
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 600s
@@ -185,13 +187,15 @@ services:
     command: taskmanager
     ports:
       - "9249"
+    volumes:
+      - ../schemas:/opt/flink/schemas:ro
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         parallelism.default: 10
         taskmanager.numberOfTaskSlots: 10
-        state.backend.type: hashmap
+        state.backend.type: ${FLINK_STATE_BACKEND}
         state.checkpoints.dir: s3://flink-checkpoints/checkpoints
         state.savepoints.dir: s3://flink-savepoints/savepoints
         execution.checkpointing.interval: 600s

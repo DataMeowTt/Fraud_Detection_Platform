@@ -12,9 +12,9 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092"
 
 # Transaction generator 
 
-TPS               = 5000
+TPS         = 5000
 FRAUD_RATIO = (0.020, 0.025)
-START_DATE = datetime(2026, 6, 24, 16, 0, 0, tzinfo=timezone.utc)
+START_DATE  = datetime(2026, 6, 24, 16, 0, 0, tzinfo=timezone.utc)
 
 WINDOWS = [
     ( 0 * 3600,  3600),  # 16:00-17:00
@@ -57,11 +57,20 @@ SCENARIOS = [
 ]
 
 RULE_UPDATES = {
-    10: {"rule_id": "BLACKLIST_FRD_SC6", "field": "account_id", "operator": "EQ",
-         "value": "FRD_RULE_UPDATE_SC6", "threshold": 0, "action": "BLOCK", "enabled": True},
+    10: {"rule_id": "BLACKLIST_FRD_SC6", 
+         "field": "account_id", 
+         "operator": "EQ",
+         "value": "FRD_RULE_UPDATE_SC6", 
+         "threshold": 0, 
+         "action": "BLOCK", 
+         "enabled": True},
 }
 
 DEFAULT_RULES = [
-    {"rule_id": "AMOUNT_THRESHOLD", "field": "amount", "operator": "GT",
-     "threshold": 1_000_000_000, "action": "BLOCK", "enabled": True},
+    {"rule_id": "AMOUNT_THRESHOLD", 
+     "field": "amount", 
+     "operator": "GT",
+     "threshold": 1_000_000_000, 
+     "action": "BLOCK", 
+     "enabled": True},
 ]

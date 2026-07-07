@@ -1,6 +1,7 @@
 package com.frauddetection.common.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
@@ -35,9 +36,11 @@ public class Transaction implements Serializable {
     @JsonProperty("status")
     public String status;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonProperty("is_fraud")
     public String isFraud;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonProperty("fraud_pattern")
     public String fraudPattern;
 

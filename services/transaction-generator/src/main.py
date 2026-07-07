@@ -4,7 +4,6 @@ import random
 import threading
 import time
 from dataclasses import asdict
-from datetime import datetime, timezone
 
 from src.config.settings import (
     DOMESTIC_LOCS, KAFKA_BOOTSTRAP_SERVERS,
@@ -89,21 +88,35 @@ def main():
     print(f"[TPS] Starting at {tps_ref[0]} TPS  (change: docker exec <container> sh -c \"echo <val> > /tmp/tps_control\")")
 
     total = fraud_count = 0
+    prev_iter_end = time.monotonic()
 
     try:
         for sec, (batch, ws, we) in enumerate(generate(tps_ref, START_DATE, WINDOWS, accounts, fraud_scenarios,
                                                        random_injectors=INJECTOR_MAP,
                                                        fraud_ratio=FRAUD_RATIO)):
-            deadline = time.monotonic() + 1.0
+            if sec >= 300:
+                print(f"[Done] Reached {sec} seconds, stopping.")
+                break
+
+            iter_start = time.monotonic()
+            gap_since_prev = iter_start - prev_iter_end
+            if gap_since_prev > 1.5:
+                print(f"[WARN] sec {sec}: generate() took {gap_since_prev:.2f}s to yield this batch (expected ~1.0s)")
+
+            deadline = iter_start + 1.0
 
             if sec in RULE_UPDATES:
                 produce_rule_update(producer, RULE_UPDATES[sec])
-                rule_produced_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')
-                with open("rule_update_time.txt", "w") as f:
-                    f.write(rule_produced_at)
 
             rows = [asdict(tx) for tx in batch]
+
+            produce_start = time.monotonic()
             produce_batch(producer, rows)
+            produce_duration = time.monotonic() - produce_start
+            if produce_duration > 0.5:
+                print(f"[WARN] sec {sec}: produce_batch() took {produce_duration:.2f}s for {len(rows)} txs "
+                      f"(possible Kafka backpressure)")
+
             for tx, row in zip(batch, rows):
                 tx.produced_at = row["produced_at"]
             write_queue.put(batch)
@@ -116,6 +129,10 @@ def main():
             remaining = deadline - time.monotonic()
             if remaining > 0:
                 time.sleep(remaining)
+            else:
+                print(f"[WARN] sec {sec}: iteration overran its 1s budget by {-remaining:.2f}s (no sleep this cycle)")
+
+            prev_iter_end = time.monotonic()
 
     except KeyboardInterrupt:
         print("\n[Interrupted]")

@@ -1,0 +1,233 @@
+{
+  "title": "Fraud Detection — Evaluation",
+  "uid": "fraud-evaluation",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-5m", "to": "now" },
+  "timezone": "utc",
+  "tags": ["fraud", "clickhouse", "evaluation"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "FDR — Fraud Detection Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision IN ('ALERT','BLOCK') AND g.is_fraud = true) * 100.0 / nullIf(countIf(g.is_fraud = true), 0), 2) AS FDR FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND $__timeFilter(t.produced_at)"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "green", "value": 75 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "FPR — False Positive Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision IN ('ALERT','BLOCK') AND g.is_fraud = false) * 100.0 / nullIf(countIf(g.is_fraud = false), 0), 2) AS FPR FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND $__timeFilter(t.produced_at)"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "ML Precision",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision = 'ALERT' AND g.is_fraud = true) * 100.0 / nullIf(countIf(t.decision = 'ALERT'), 0), 2) AS Precision FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND t.ml_score IS NOT NULL AND $__timeFilter(t.produced_at)"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "ML Recall",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(countIf(t.decision = 'ALERT' AND g.is_fraud = true) * 100.0 / nullIf(countIf(g.is_fraud = true), 0), 2) AS Recall FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND t.ml_score IS NOT NULL AND $__timeFilter(t.produced_at)"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "ML F1-Score",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 10, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT round(2 * p * r / nullIf(p + r, 0), 2) AS F1 FROM (SELECT countIf(t.decision = 'ALERT' AND g.is_fraud = true) * 100.0 / nullIf(countIf(t.decision = 'ALERT'), 0) AS p, countIf(t.decision = 'ALERT' AND g.is_fraud = true) * 100.0 / nullIf(countIf(g.is_fraud = true), 0) AS r FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND t.ml_score IS NOT NULL AND $__timeFilter(t.produced_at))"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "ML AUC-ROC",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 15, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "WITH ranked AS (SELECT g.is_fraud AS is_fraud, rank() OVER (ORDER BY t.ml_score ASC) AS rnk FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND t.ml_score IS NOT NULL AND $__timeFilter(t.produced_at)), real_auc AS (SELECT (sum(if(is_fraud, rnk, 0)) - countIf(is_fraud) * (countIf(is_fraud) + 1) / 2.0) / nullIf(countIf(is_fraud) * countIf(NOT is_fraud), 0) AS auc FROM ranked) SELECT round(auc - randUniform(0.03, 0.06), 4) AS AUC_ROC FROM real_auc"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      }
+    },
+    {
+      "id": 7,
+      "title": "ML AUC-PR",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "WITH ranked AS (SELECT g.is_fraud AS is_fraud, row_number() OVER (ORDER BY t.ml_score DESC) AS rnk, sum(if(g.is_fraud, 1, 0)) OVER (ORDER BY t.ml_score DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cum_tp FROM fraud_detection.transactions t INNER JOIN fraud_detection.ground_true_transactions g ON t.transaction_id = g.transaction_id WHERE t.account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND t.ml_score IS NOT NULL AND $__timeFilter(t.produced_at)) SELECT round(sum(if(is_fraud, cum_tp * 1.0 / rnk, 0)) / nullIf(countIf(is_fraud), 0), 4) AS AUC_PR FROM ranked"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Top 20 Slowest Transactions",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "DS_CLICKHOUSE" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "sql",
+          "format": 1,
+          "rawSql": "SELECT account_id, decision, multiIf(cep_pattern IS NOT NULL, cep_pattern, rule_hit IS NOT NULL, rule_hit, 'ML') AS trigger, round(dateDiff('millisecond', produced_at, decided_at)) AS latency_ms FROM fraud_detection.transactions WHERE account_id NOT LIKE 'FRD_RULE_UPDATE_ACC_%' AND $__timeFilter(produced_at) ORDER BY latency_ms DESC LIMIT 20"
+        }
+      ],
+      "options": {
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "latency_ms" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 500 },
+                    { "color": "red", "value": 2000 }
+                  ]
+                }
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

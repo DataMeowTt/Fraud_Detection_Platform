@@ -11,9 +11,7 @@
     "amount",
     "channel",
     "location_name",
-    "status",
-    "is_fraud",
-    "fraud_pattern"
+    "status"
   ],
   "properties": {
     "transaction_id": {
@@ -32,16 +30,15 @@
     },
     "account_id": {
       "type": "string",
-      "pattern": "^(ACC|FRD)_[0-9]{5}$"
+      "pattern": "^(ACC_[0-9]{5}|FRD_[A-Z0-9_]+)$"
     },
     "card_id": {
       "type": "string",
       "pattern": "^(CARD|FRD_CARD)_[0-9]{5}$"
     },
     "amount": {
-      "type": "string",
-      "pattern": "^[0-9]+$",
-      "description": "Transaction amount in VND, serialized as integer string (no decimals)"
+      "type": "number",
+      "description": "Transaction amount in VND"
     },
     "channel": {
       "type": "string",
@@ -53,22 +50,6 @@
     "status": {
       "type": "string",
       "enum": ["Approved", "Declined"]
-    },
-    "is_fraud": {
-      "type": "string",
-      "enum": ["TRUE", "FALSE"],
-      "description": "Ground-truth fraud label — exists only in simulated data, not in production"
-    },
-    "fraud_pattern": {
-      "type": "string",
-      "enum": [
-        "NONE",
-        "HIGH_AMOUNT_BLOCK",
-        "HIGH_FREQUENCY",
-        "LOCATION_JUMP",
-        "DECLINED_BURST",
-        "RAPID_MICROPAYMENTS"
-      ]
     }
   },
   "additionalProperties": false

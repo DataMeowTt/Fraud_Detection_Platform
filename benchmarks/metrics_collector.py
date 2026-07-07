@@ -10,9 +10,9 @@ import clickhouse_connect
 
 CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "localhost")
 FLINK_URL       = os.getenv("FLINK_URL", "http://localhost:8081")
-ACCOUNT_ID_PREFIX = "LOAD_TEST_ACC"
-LEVELS_INPUT_PATH = os.path.join(os.path.dirname(__file__), "load_test_levels.json")
-CSV_OUTPUT_PATH   = os.path.join(os.path.dirname(__file__), "stress_test_results.csv")
+EXCLUDED_ACCOUNT_ID = "1"  # RuleEngineTest's synthetic test account
+LEVELS_INPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "performance", "load_test_levels.json")
+CSV_OUTPUT_PATH   = os.path.join(os.path.dirname(__file__), "..", "performance", "stress_test_results.csv")
 
 def get_client():
     return clickhouse_connect.get_client(host=CLICKHOUSE_HOST, port=8123)
@@ -28,12 +28,12 @@ def query_level_latency(client, level: dict):
             quantile(0.99)(dateDiff('millisecond', produced_at, decided_at)) AS p99_ms,
             max(dateDiff('millisecond', produced_at, decided_at))            AS max_ms
         FROM fraud_detection.transactions
-        WHERE account_id LIKE {prefix:String}
+        WHERE account_id != {excluded_account:String}
           AND produced_at >= {start:DateTime64(6)}
           AND produced_at <  {end:DateTime64(6)}
         """,
         parameters={
-            "prefix": ACCOUNT_ID_PREFIX + "%",
+            "excluded_account": EXCLUDED_ACCOUNT_ID,
             "start":  datetime.fromisoformat(level["start"]),
             "end":    datetime.fromisoformat(level["end"]),
         },
@@ -62,6 +62,7 @@ def print_level_report(client, levels: list[dict]) -> list[list]:
     return csv_rows
 
 def write_csv(rows: list[list], path: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="") as f:
         csv.writer(f).writerows(rows)
 

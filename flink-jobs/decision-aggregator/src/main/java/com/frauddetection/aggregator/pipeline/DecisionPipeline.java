@@ -22,18 +22,17 @@ import java.util.Set;
 
 /**
  * transaction -> Rules Engine -> BLOCK? -> output
- *               Rules PASS   -> CEP Engine   -> BLOCK/ALERT? -> output
- *               CEP PASS                     -> ML Engine    -> ALERT/APPROVED -> output
+ * Rules PASS -> CEP Engine -> BLOCK/ALERT? -> output
+ * CEP PASS -> ML Engine -> ALERT/APPROVED -> output
  */
 public class DecisionPipeline
         extends KeyedBroadcastProcessFunction<String, Transaction, FraudRule, FraudDecision> {
 
     private static final Set<String> PRIORITY_ACCOUNTS = Set.of(
-            "FRD_RULE_UPDATE_SC6"
-    );
+            "FRD_RULE_UPDATE_SC6");
 
-    private static final int  MAX_BATCH_SIZE = 1024;
-    private static final long MAX_WAIT_MS    = 30;
+    private static final int MAX_BATCH_SIZE = 1024;
+    private static final long MAX_WAIT_MS = 30;
 
     private static boolean isPriorityAccount(String accountId) {
         return PRIORITY_ACCOUNTS.contains(accountId);
@@ -50,16 +49,16 @@ public class DecisionPipeline
         }
     }
 
-    private RuleEvaluator    ruleEvaluator;
-    private CepEvaluator     cepEvaluator;
+    private RuleEvaluator ruleEvaluator;
+    private CepEvaluator cepEvaluator;
     private FeatureExtractor featureExtractor;
-    private FraudScorer      fraudScorer;
+    private FraudScorer fraudScorer;
     private transient List<PendingScore> pendingBatch;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        ruleEvaluator    = new RuleEvaluator();
-        cepEvaluator     = new CepEvaluator(getRuntimeContext());
+        ruleEvaluator = new RuleEvaluator();
+        cepEvaluator = new CepEvaluator(getRuntimeContext());
         featureExtractor = new FeatureExtractor();
         featureExtractor.open(getRuntimeContext());
         fraudScorer = new FraudScorer();
